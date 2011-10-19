@@ -1,0 +1,42 @@
+
+########################################################
+     Research Code for Fitting Latent Factor Models
+########################################################
+
+Authors: Bee-Chung Chen and Deepak Agarwal
+         Yahoo! Research
+
+I. Introduction
+
+   This code base consists of algorithms for fitting factor models written in
+   R and C/C++.  The entry point of any fitting algorithm is in R.  The
+   computationally intensive parts are written in C/C++. The models and 
+   algorithms have been described in the following papers.
+   
+   [1] Bee-Chung Chen, Jian Guo, Belle Tseng, Jie Yang: User reputation in a
+       comment rating environment. KDD 2011.
+   [2] Deepak Agarwal, Bee-Chung Chen: Regression-based latent factor models.
+       KDD 2009.
+   [3] Deepak Agarwal, Bee-Chung Chen, Bo Long: Localized factor models for 
+       multi-context recommendation. KDD 2011.
+   [4] Deepak Agarwal, Bee-Chung Chen: Latent OLAP: data cubes over latent 
+       variables. SIGMOD Conference 2011.
+       
+II. Compilation
+
+   You need to have R installed before compiling the code.
+   To install R, see: http://www.r-project.org/
+   You have to install R from source on a linux machine.
+   It is recommended to use R version >= 2.10.1.
+   
+   The following R packages also need to be installed.
+      Matrix
+      glmnet
+   
+   To compile the C/C++ code, just type make.
+
+III. Examples
+
+   See: src/R/examples/multicontext_model.R
+        src/multi-app/R/example/fitting.R
+        
