@@ -1,0 +1,68 @@
+
+Model:
+
+    Observation: (src.id, dst.id, src.context, dst.context, edge.context, y);
+                       i       j          k_s,         k_d,          k_e
+                                   (optional)   (optional)    (optional)
+                                   
+          y[ijk] ~ N(fScore[ijk] + x_obs[ijk,]'b,  var_y[ijk])
+     fScore[ijk] = alpha[i,k_s] + beta[j,k_d] + gamma[k_e] + sum(v[i,] * v[j,] * w[k_e,])  if u is null
+                                                       ... + sum(u[i,] * v[j,] * w[k_e,])  if u is not null
+      alpha[i,k] ~ N(q[k]*alpha_global[i] + x_src[i,]'g0[,k],  var_alpha[k])
+ alpha_global[i] ~ N(0,                                        var_alpha_global)
+       beta[j,k] ~ N(r[k]*beta_global[j]  + x_dst[j,]'d0[,k],  var_beta[k])
+  beta_global[j] ~ N(0,                                        var_beta_global)
+        gamma[k] ~ N(x_ctx[k,]'h0, var_gamma)
+           u[i,] ~ N(x_src[i,]'G,  var_u)
+           v[j,] ~ N(x_dst[j,]'D,  var_v)
+           w[k,] ~ N(x_ctx[k,]'H,  var_w)
+
+Data:
+    obs     = data.frame(src.id, dst.id, src.context, dst.context, edge.context, y);
+    
+    factor  = list(alpha, beta, gamma, u, v, w, alpha_global, beta_global);
+              alpha: nSrcNodes x nSrcContexts (required)
+               beta: nDstNodes x nDstContexts (required)
+              gamma: nEdgeContexts x 1        (optional) NULL if obs$edge.context is NULL
+                  u: nSrcNodes x nFactors     (optional)
+                  v: nDstNodes x nFactors     (optional)
+                  w: nEdgeContexts x nFactors (optional) NULL if obs$edge.context is NULL
+       alpha_global: nSrcNodes x 1            (optional) NULL if nSrcContexts = 1
+        beta_global: nDstNodes x 1            (optional) NULL if nDstContexts = 1
+    
+    feature = list(x_obs, x_src, x_dst, x_ctx);
+              x_obs: nObs x nObsFeatures
+              x_src: nSrcNodes x nSrcFeatures
+              x_dst: nDstNodes x nDstFeatures
+              x_ctx: nEdgeContexts x nCtxFeatures
+              
+    param   = list(b, g0, d0, h0, G, D, H, q, r,
+                   var_y, var_alpha, var_alpha_global, var_beta_global, 
+                   var_beta, var_gamma, var_u, var_v, var_w);
+                b: nObsFeatures x 1
+               g0: nSrcFeatures x nSrcContexts
+               d0: nDstFeatures x nDstContexts
+                G: nSrcFeatures x nFactors
+                D: nDstFeatures x nFactors
+                H: nCtxFeatures x nFactors
+                q: nSrcContexts x 1
+                r: nDstContexts x 1
+            var_y:            1x1 or nObs x 1
+            var_alpha:        nSrcContext x 1
+            var_alpha_global: 1x1                  (optional)  NULL if nSrcContexts = 1
+            var_beta:         nDstContext x 1
+            var_beta_global:  1x1                  (optional)  NULL if nDstContexts = 1
+            var_gamma:        1x1                  (optional)  NULL if obs$edge.context is NULL
+            var_u:            1x1 or nFactors x 1  (optional)
+            var_v:            1x1 or nFactors x 1  (optional)
+            var_w:            1x1                  (optional)  NULL if obs$edge.context is NULL
+         Optional parameters: (can be NULL)
+            param$nLocalFactors is NULL for the regular model
+                                is NOT NULL; then, we use the following model 
+                  fScore[ijk] = alpha[i,k_s] + beta[j,k_d] + gamma[k_e] + sum(v[i,,k_e] * v[j,,k_e]) if u is NULL
+                                                                    ... + sum(u[i,,k_e] * v[j,,k_e]) if u is not NULL
+                      u[i,,k] ~ N(x_src[i,]' G[,,k],  var_u[k])
+                      v[j,,k] ~ N(x_dst[j,]' D[,,k],  var_v[k])
+            param$xi is used for variational approximation for the logistic model
+            param$reg.algo specifies the regression algorithm to be used in the M-step.
+            param$reg.control specifies the control parameters for param$reg.algo.

@@ -1,0 +1,84 @@
+
+All of the notations are in R syntax.
+
+Indices:
+    i: user
+    j: item
+    k: application
+
+Observed Data:
+    feature = data.frame(user, app, index,  x,       w)
+                each row:   i,   k,     m,  x_{ikm}, w_{x,ikm}
+                  * i is the user ID (starting from 1)
+                  * k is the application ID (starting from 1)
+                  * m specifies the m-th feature (starting from 1)
+                  * x_{ikm} is the m-th feature of user i in application k.
+                  * w_{x,ikm} is the weight on the variance/uncertainty of x_{ikm}.
+                   (see the model below)
+                   
+    response = data.frame(user,  app, item,   y,       w)
+                 each row:   i,    k,    j,   y_{ijk}, w_{y,ijk}
+                  * i is the user ID (starting from 1)
+                  * j is the item ID (starting from 1)
+                    Note: Item j in application 1 != item j in application 2.
+                  * k is the application ID (starting from 1)
+                  * y_{ijk} is the rating that user i gives item j in
+                    application k.
+                  * w_{y,ijk} (optional) specifies the weight on the
+                    variance/uncertainty of y_{ijk}. (see the model below)
+
+Latent Factors:
+    z[[k]][i,]: The latent profile vector of user i in application k.
+                We assume x[[k]][i,] is generated according to z[[k]][i,].
+    u[i,]:      The global latent profile vector of user i
+                We assume z[[k]][i,] is generated according to u[i,].
+
+Model:
+       x_{ikm} ~ N(mean = t(B[[k]][m,]) %*% z[[k]][i,] + b[[k]][m],  var = var_x[k] * w_{x,ikm})
+                 Parameters:
+                    B[[k]]: (matrix) size = (# features in app k) x (# factors per user in app k)
+                    b[[k]]: (vector) size = (# features in app k)
+                     var_x: (vector) size = (# app)
+       y_{ijk} ~ N(mean = t(beta[[k]][j,]) %*% z[[k]][i,] + alpha[[k]][j],  var = var_y[k] * w_{y,ijk})
+                 Parameters:
+                     beta[[k]]: (matrix) size = (# items in app k) x (# factors per user in app k)
+                    alpha[[k]]: (vector) size = (# items in app k)
+                         var_y: (vector) size = (# app)
+    z[[k]][i,] ~ N(mean = A[[k]] %*% u[i,],  var = var_z[k])
+                 Parameters:
+                    A[[k]]: (matrix) size = (# factors per user in app k) x (# global factors per user)
+                     var_z: (vector) size = (# app)
+                            (set to 1 if B[[k]]'s are fitted)
+         u[i,] ~ N(mean = 0,  var = var_u)
+                 Parameter:
+                     var_u: (scalar) (set to 1 if A is fitted)
+
+Input Variables to R Functions:
+    param = list(A, B, b, alpha, beta, var_x, var_y, var_z, var_u);
+            where A is a list of matrices (each has size: "# factors per user in app k" x "# global factors per user")
+                                           or A[[k]] = 1 (scalar) indicating an identity matrix
+                  B is a list of matrices (each has size: "# features in app k" x "# factors per user in app k")
+                                           or B[[k]] = 1 (scalar) indicating an identity matrix
+                  b is a list of vectors  (each has size: # features in app k)
+              alpha is a list of vectors  (each has size: # items in app k)
+               beta is a list of matrices (each has size: "# items in app k" x "# factors per user in app k")
+              var_x is a vector of size: # applications
+              var_y is a vector of size: # applications
+              var_z is a vector of size: # applications
+              var_u is a scalar
+    factor = list(u, z)
+             where u is a matrix of size: "# users" x "# global factors per user"
+                   z is a list of matrices (each has size: "# users" x "# factors per user in app k")
+
+Logistic model:
+    feature$response:  the original binary feature values
+    feature$x:         the approximated Gaussian feature values
+    feature$w:         the approximated Gaussian variances
+    param$x.xi is a vector of size nrow(feature),  which is used for variational approx
+    param$var_x MUST be 1
+    
+    response$response: the original binary response values
+    response$y:        the approximated Gaussian response values
+    response$w:        the approximated Gaussian variances
+    param$y.xi is a vector of size nrow(response), which is used for variational approx
+    param$var_y MUST be 1
