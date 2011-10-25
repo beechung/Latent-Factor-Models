@@ -394,7 +394,7 @@ void MCEM_EStep_multicontext(
         	for(int k=0; k<nBeta; k++) beta_global_sum[k] += beta_global[k];
         	for(int k=0; k<nBeta; k++) beta_global_sos[k] += SQR(beta_global[k]);
         	for(int i=0; i<nBeta; i++) for(int k=0; k<nBetaContexts; k++){
-        		beta_outputCov[C_MAT(i,k,nBeta)] += beta_global[i] * beta[C_MAT(i,k,nAlpha)];
+        		beta_outputCov[C_MAT(i,k,nBeta)] += beta_global[i] * beta[C_MAT(i,k,nBeta)];
         	}
         }
 
