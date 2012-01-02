@@ -1074,11 +1074,15 @@ void gaussianPosterior_mainEffect_2Levels(
 			double F = b_var[C_MAT(i,k,nItems)];
 			if(F == 0) continue;
 			double C = b_mean[C_MAT(i,k,nItems)];
-			double A = (1/var_b_this) + F;
-			// E[a_i | obs_ik]/Var[a_i | obs_ik] = (C * q[k]) / (A * var_b[k])
-			// (1/Var[a_i | obs_ik] - 1/var_a)   = (q[k]^2 / var_b[k]) * (1 - 1/(A * var_b[k]))
-			sum_for_mean += (C * q[k]) / (A * var_b_this);
-			sum_for_var  += (q[k]*q[k] / var_b_this) * (1 - 1/(A * var_b_this));
+			if(var_b_this > 0){
+				double A = (1/var_b_this) + F;
+				// E[a_i | obs_ik]/Var[a_i | obs_ik] = (C * q[k]) / (A * var_b[k])
+				// (1/Var[a_i | obs_ik] - 1/var_a)   = (q[k]^2 / var_b[k]) * (1 - 1/(A * var_b[k]))
+				sum_for_mean += (C * q[k]) / (A * var_b_this);
+				sum_for_var  += (q[k]*q[k] / var_b_this) * (1 - 1/(A * var_b_this));
+			}else if(var_b_this == 0){
+				STOP("not yet support prior var = 0");
+			}else STOP("var_b_this < 0");
 		}
 		if((*verbose) >= 100) printf("   i=%d:  sum.for.a.mean=%f, sum.for.a.var=%f\n", i+1, sum_for_mean, sum_for_var);
 

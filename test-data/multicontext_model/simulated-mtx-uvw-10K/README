@@ -1,0 +1,75 @@
+
+Simulated Data for Testing Multi-Context Models
+Code: src/unit-test/multicontext_model/create-simulated-data-1.R
+
+FILE: obs-{train,test}.txt
+      These are the observed ratings for training and test.
+      Columns:
+        1. user_id: User ID
+        2. item_id: Item ID
+        3. user_mode: The mode of the user when rating the item
+        4. item_mode: The mode of the item when rated by the user
+        5. ctxt_id: The context when the user gives the rating to the item
+        6. rating: The rating value
+
+FILE: dense-feature-user.txt
+      This is the user feature table in the dense format.
+      Columns:
+        1. user_id: User ID (primary key of this table).
+           The user_id in obs-{train,test}.txt refers to this.
+        2. feature_1
+        3. feature_2
+        4. feature_3
+
+FILE: dense-feature-item.txt
+      This is the item feature table in the dense format.
+      Columns:
+        1. item_id: Item ID (primary key of this table)
+           The item_id in obs-{train,test}.txt refers to this.
+        2. feature_1
+        3. feature_2
+        4. feature_3
+
+FILE: dense-feature-ctxt.txt
+      This is the rating-context feature table in the dense format.
+      Columns:
+        1. ctxt_id: Context ID (primary key of this table)
+           The ctxt_id in obs-{train,test}.txt refers to this.
+        2. feature_1
+
+FILE: dense-feature-obs-{train,test}.txt
+      These are the observation feature table of the training and test ratings
+      in the dense format.  The i-th line of dense-feature-obs-train.txt
+      specifies the feature vector of the i-th line of obs-train.txt, these
+      are the features associated with the event when the user rates the item
+      (e.g., time of day of the event).
+      Columns:
+        1. feature_1
+        2. feature_2
+
+FILE: sparse-feature-{user,item,ctxt}.txt
+      Feature tables for users, items and rating-contexts in the sparse format.
+      Same as dense-feature-{user,item,ctxt}.txt, but in the sparse format.
+      Columns:
+        1. id: user_id, item_id or ctxt_id
+        2. index: Feature index (start from 1, not 0)
+        3. value: Feature value
+      Example:
+        sparse-feature-user.txt      dense-feature-user.txt
+        SPARSE FORMAT           <=>  DENSE FORMAT
+        user_id  index   value       user_id   feature_1  feature_2  feature_3
+             15      2  -0.978            15           0     -0.978      0.031
+             15      3   0.031
+
+FILE: sparse-feature-obs-{train,test}.txt
+      Same as dense-feature-obs-{train,test}.txt, but in the sparse format.
+      Columns:
+        1. id: Line number (start from 1, not 0)
+        2. index: Feature index (start from 1, not 0)
+        3. value: Feature value
+      Example: sparse-feature-obs-train.txt
+        id   index   value   # MEANING
+         9       1    0.14   # 1st feature of line  9 in obs-train.txt = 0.14
+         9       2   -0.93   # 2nd feature of line  9 in obs-train.txt =-0.93
+        10       1   -0.91   # 1st feature of line 10 in obs-train.txt =-0.91
+        

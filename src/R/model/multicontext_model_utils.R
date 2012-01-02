@@ -25,18 +25,35 @@ indexData <- function(
 	x_obs=NULL, x_src=NULL, x_dst=NULL, x_ctx=NULL,
 	add.intercept=TRUE,   # whether to add an intercept
 	SrcIDs=NULL, DstIDs=NULL, SrcContexts=NULL, DstContexts=NULL, CtxIDs=NULL,
-	rm.obs.mismatch=FALSE,# whether to remove observations that cannot find the specified IDs
 	# E.g., out$x_src[i,] should correspond to SrcIDs[i]
+	rm.obs.mismatch=FALSE,# whether to remove observations that cannot find the specified IDs
 	other.columns=NULL
 ){
-	check_names(obs,"obs",required = c("src_id", "dst_id", "y"));
-	if(!is.null(x_src) && is.null(x_src$src_id)) stop("src_id must be a column in x_src");
-	if(!is.null(x_dst) && is.null(x_dst$dst_id)) stop("dst_id must be a column in x_dst");
-	if(!is.null(x_ctx) && is.null(x_ctx$ctx_id)) stop("ctx_id must be a column in x_ctx");
+	if(!is.data.frame(obs)) stop("Please check input parameter 'obs' when calling function indexData or indexTestData: obs should be a data frame.");
+	if(nrow(obs) == 0) stop("Please check input parameter 'obs' when calling function indexData or indexTestData: obs contains no data (i.e., nrow(obs) == 0).");
+	
+	check_names(obs,"obs",required = c("src_id", "dst_id", "y"),prefix="Please check input parameter 'obs' when calling function indexData or indexTestData. ");
+	if(!is.null(x_src)){
+		if(is.null(x_src$src_id)) stop("Please check input parameter 'x_src' when calling function indexData or indexTestData: src_id must be a column in x_src");
+		if(!is.sparse.feature(x_src) && length(unique(x_src$src_id)) != nrow(x_src)) stop("Please check input parameter 'x_src' when calling function indexData or indexTestData: x_src$src_id contains duplicate IDs.");
+		if(is.factor(x_src$src_id)) x_src$src_id = as.character(x_src$src_id);
+	} 
+	if(!is.null(x_dst)){
+		if(is.null(x_dst$dst_id)) stop("Please check input parameter 'x_dst' when calling function indexData or indexTestData: dst_id must be a column in x_dst");
+		if(!is.sparse.feature(x_dst) && length(unique(x_dst$dst_id)) != nrow(x_dst)) stop("Please check input parameter 'x_dst' when calling function indexData or indexTestData: x_dst$dst_id contains duplicate IDs.");
+		if(is.factor(x_dst$dst_id)) x_dst$dst_id = as.character(x_dst$dst_id);
+	}
+	if(!is.null(x_ctx)){
+		if(is.null(x_ctx$ctx_id)) stop("Please check input parameter 'x_ctx' when calling function indexData or indexTestData: ctx_id must be a column in x_ctx");
+		if(!is.sparse.feature(x_ctx) && length(unique(x_ctx$ctx_id)) != nrow(x_ctx)) stop("Please check input parameter 'x_ctx' when calling function indexData or indexTestData: x_ctx$ctx_id contains duplicate IDs.");
+		if(is.factor(x_ctx$ctx_id)) x_ctx$ctx_id = as.character(x_ctx$ctx_id);
+	}
 	
 	if(!is.null(x_obs) && ncol(x_obs) == 3 && all(c("obs_id", "index", "value") %in% names(x_obs))){
 		# x_obs is in the sparse format
-		x_obs = get.feature.matrix(x=x_obs, id.colname="obs_id", selected.id=1:nrow(obs), add.intercept=add.intercept);
+		if(!is.numeric(x_obs$obs_id)) stop("Please check input parameter 'x_obs' when calling function indexData or indexTestData: x_obs$obs_id must be numeric, specifying row numbers of table obs.");
+		if(any(x_obs$obs_id <= 0)) stop("Please check input parameter 'x_obs' when calling function indexData or indexTestData: x_obs$obs_id must be > 0, specifying row numbers of table obs (starting from 1, not 0).");
+		x_obs = get.feature.matrix(x=x_obs, id.colname="obs_id", selected.id=1:nrow(obs), add.intercept=add.intercept, err.prefix="Please check input parameter 'x_obs' when calling function indexData or indexTestData: ", err.x.name="x_obs", err.select.name="1:nrow(obs)");
 	}else{
 		# x_obs is in the dense format
 		if(add.intercept){ regFormula = formula(~.);   default = 1.0; }
@@ -45,13 +62,13 @@ indexData <- function(
 		else               x_obs = model.matrix(regFormula, x_obs);
 	}
 	
-	if(nrow(obs) != nrow(x_obs)) stop("nrow(obs) != nrow(x_obs)");
+	if(nrow(obs) != nrow(x_obs)) stop("Please check input parameters 'obs' and 'x_obs' when calling function indexData or indexTestData: nrow(obs) != the number of observations in x_obs. When x_obs is in the dense format, please make sure x_obs[i,] represents the feature vector for obs[i,]. When x_obs is in the sparse format, please make sure x_obs[i,] represents a non-zero feature for obs[x_obs[i,'obs_id'],]");
 
 	for(name in c("src_id", "dst_id", "src_context", "dst_context", "ctx_id")){
-		if(!is.null(obs[[name]]) && is.factor(obs[[name]])) stop("obs$",name," cannot be of type factor");
+		if(!is.null(obs[[name]]) && is.factor(obs[[name]])) obs[[name]] = as.character(obs[[name]]);
 	}
 	if(rm.self.link){
-		if(!src.dst.same) stop("rm.self.link && !src.dst.same");
+		if(!src.dst.same) stop("Please check input parameters 'rm.self.link' and 'src.dst.same' when calling function indexData or indexTestData: When rm.self.link = TRUE, src.dst.same must also = TRUE");
 		select = obs$src_id != obs$dst_id;
 		if(sum(select) != nrow(obs)){
 			obs   = obs[select,];
@@ -114,15 +131,18 @@ indexData <- function(
 	# Features
 	out$feature = list(x_obs=x_obs);
 	out$feature$x_src = get.feature.matrix(
-		x=x_src, id.colname="src_id", selected.id=SrcIDs, add.intercept=add.intercept
+		x=x_src, id.colname="src_id", selected.id=SrcIDs, add.intercept=add.intercept, 
+		err.prefix="Please check input parameters 'x_src' and 'obs' when calling function indexData or indexTestData: ", err.x.name="x_src", err.select.name="obs$src_id"
 	);
 	out$feature$x_dst = get.feature.matrix(
-		x=x_dst, id.colname="dst_id", selected.id=DstIDs, add.intercept=add.intercept
+		x=x_dst, id.colname="dst_id", selected.id=DstIDs, add.intercept=add.intercept, 
+		err.prefix="Please check input parameters 'x_dst' and 'obs' when calling function indexData or indexTestData: ", err.x.name="x_dst", err.select.name="obs$dst_id"
 	);
 	
 	if(!is.null(out$obs$edge.context)){
 		out$feature$x_ctx = get.feature.matrix(
-			x=x_ctx, id.colname="ctx_id", selected.id=CtxIDs, add.intercept=add.intercept
+			x=x_ctx, id.colname="ctx_id", selected.id=CtxIDs, add.intercept=add.intercept,
+			err.prefix="Please check input parameters 'x_ctx' and 'obs' when calling function indexData or indexTestData: ", err.x.name="x_ctx", err.select.name="obs$ctx_id"
 		);
 	}else{
 		if(!is.null(x_ctx)) stop("No edge context, but has x_ctx");
@@ -432,11 +452,12 @@ check.individual <- function(name, x, type.list, size, isNullOK, stopIfAnyNull=N
 	}
 }
 
-check_names <- function(x, display.name, required, should.have=c(), optional=c()){
+check_names <- function(x, display.name, required, should.have=c(), optional=c(), prefix=""){
 	names.all = c(required, optional, should.have);
-	if(!is.null(optional)) warning.any.not.in(names(x), names.all, paste("The following components should not be in ",display.name,": ", sep=""), stop=TRUE);
-	warning.any.not.in(required,  names(x),  paste("You must have the following components in ",display.name,": ",sep=""), stop=TRUE);
-	warning.any.not.in(should.have, names(x),paste("The following components are missing in ",display.name,": ",sep=""), stop=FALSE, print=TRUE);
+	temp = if(is.data.frame(x)) "column(s)" else "component(s)";
+	if(!is.null(optional)) warning.any.not.in(names(x), names.all, paste(prefix,"The following ",temp," should not be in ",display.name,": ", sep=""), stop=TRUE);
+	warning.any.not.in(required,  names(x),  paste(prefix,"You must have the following ",temp," in ",display.name,": ",sep=""), stop=TRUE);
+	warning.any.not.in(should.have, names(x),paste(prefix,"The following ",temp," are missing in ",display.name,": ",sep=""), stop=FALSE, print=TRUE);
 }
 
 check.obs.feature <- function(obs, feature, nSrcContexts=1, nDstContexts=1, nEdgeContexts=0){
@@ -707,7 +728,7 @@ E.loglik.mainEffect <- function(
 	x, local.mean, global.mean, local.var, global.var, local.cov,
 	subset=NULL, algo=NULL
 ){
-	nContexts = ncol(local.mean);
+	nContexts = if(is.vector(local.mean)) 1 else ncol(local.mean);
 	nFeatures = ncol(x);
 	if(nContexts == 1){
 		if(!is.null(subset)){
@@ -717,8 +738,9 @@ E.loglik.mainEffect <- function(
 			local.var  = local.var[subset[[1]]];
 		}
 		
-		if(is.list(coeff)) this.coeff = coeff[[1]]
-		else               this.coeff = coeff[,1];
+		if(is.list(coeff))        this.coeff = coeff[[1]]
+		else if(is.vector(coeff)) this.coeff = coeff
+		else                      this.coeff = coeff[,1];
 		
 		ans = Eloglik.lm.random.effect(
 			coeff=this.coeff, var=var,

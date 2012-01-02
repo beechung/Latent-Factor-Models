@@ -40,7 +40,7 @@ fit.mainEffectPrior <- function(
 	x, local.mean, global.mean, local.var, global.var, local.cov,
 	lambda, subset=NULL, zero.mean=FALSE, algo=NULL, control=NULL
 ){
-	nContexts = ncol(local.mean);
+	nContexts = if(is.vector(local.mean)) 1 else ncol(local.mean);
 	nFeatures = ncol(x);
 	if(is.null(zero.mean) || is.na(zero.mean)) zero.mean=FALSE;
 	if(nContexts == 1){
@@ -56,7 +56,7 @@ fit.mainEffectPrior <- function(
 				  var = sum(local.mean^2 + local.var) / length(local.mean)
 			));
 		}
-		if(is.null(algo)){
+		if(is.null(algo) || ncol(x) == 1){
 			ans = fit.lm.random.effect(
 				response.mean = local.mean, 
 				 feature.mean = x,
@@ -138,8 +138,8 @@ fit.interactionPrior <- function(
 	
 	if(is.null(zero.mean) || is.na(zero.mean)) zero.mean=FALSE;
 	
-	if(is.null(algo) || !any(x != 0) || zero.mean) out$coeff = matrix(NA, nrow=nFeatures, ncol=nFactors)
-	else                                           out$coeff = list();
+	if(is.null(algo) || !any(x != 0) || zero.mean || ncol(x) == 1) out$coeff = matrix(NA, nrow=nFeatures, ncol=nFactors)
+	else                                                           out$coeff = list();
 	
 	for(f in 1:nFactors){
 		if(is.null(subset)){
@@ -164,7 +164,7 @@ fit.interactionPrior <- function(
 			loss[f] = sum(f.mean^2 + f.var);
 			num[f]  = length(f.mean)
 		}else{
-			if(is.null(algo)){
+			if(is.null(algo) || ncol(x) == 1){
 				ans = fit.lm.random.effect(
 					response.mean = f.mean, 
 					response.var  = f.var, 
@@ -297,7 +297,7 @@ MCEM_MStep.multicontext <- function(
 				local.var =factor.var$gamma,  global.var =NULL,
 				local.cov =NULL,              subset=NULL
 		);
-		param$h0 = ans$coeff;
+		param$h0 = if(is.list(ans$coeff)) ans$coeff[[1]] else ans$coeff[,1];
 		if("gamma" %in% names(fix.var))  param$var_gamma[] = fix.var[["gamma"]]
 		else                             param$var_gamma   = ans$var;
 		

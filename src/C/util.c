@@ -1117,8 +1117,8 @@ void computeMultiResponseUV(
 	for(int m=0; m<nObs; m++){
 		int i = src_id[m]-1;
 		int j = dst_id[m]-1;
-		int k_s = src_ctx[m]-1;
-		int k_d = dst_ctx[m]-1;
+		int k_s = (nSrcContexts==1 ? 0 : src_ctx[m]-1);
+		int k_d = (nDstContexts==1 ? 0 : dst_ctx[m]-1);
 		if(debug > 0){
 			CHK_C_INDEX(i,nSrcNodes); CHK_C_INDEX(k_s,nSrcContexts);
 			CHK_C_INDEX(j,nDstNodes); CHK_C_INDEX(k_d,nDstContexts);

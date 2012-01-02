@@ -119,6 +119,26 @@ public:
 		sym_inv_byCholesky(data, &_nrow, &check_sym);
 	}
 
+	// Make a conceptually symmetric matrix exactly symmetric
+	inline void symmetrize(int debug=0, double abs_tol=1e-10, double rel_tol=1e-8){
+		if(_nrow != _ncol) STOP2("Trying to symmetrize a non-square matrix: %d x %d", _nrow, _ncol);
+		double max_value = 0;
+		if(debug){
+			for(int m=0; m<_nrow*_ncol; m++) if(fabs(data[m]) > max_value) max_value = fabs(data[m]);
+		}
+		for(int i=0; i<_nrow; i++) for(int j=0; j<i; j++){
+			double A_ij = data[C_MAT(i,j,_nrow)], A_ji = data[C_MAT(j,i,_nrow)];
+			if(debug && fabs(A_ij - A_ji) > abs_tol && fabs(A_ij - A_ji) > rel_tol*max_value){
+				char space[] = "   ";
+				if(debug >= 10) print(space);
+				error("A symmetric matrix is not numerically symmetric: A[%d,%d] = %.12f, A[%d,%d] = %.12f, diff=%e (source file: %s)", i, j, A_ij, j, i, A_ji, A_ij-A_ji, __FILE__);
+			}
+			double avg = (A_ij + A_ji)/2;
+			data[C_MAT(i,j,_nrow)] = avg;
+			data[C_MAT(j,i,_nrow)] = avg;
+		}
+	}
+
 	inline void elementwiseInverse(void){
 		for(int m=0; m<_nrow*_ncol; m++) data[m] = 1.0/data[m];
 	}
@@ -384,7 +404,8 @@ public:
 	void print(FILE* fp=stdout) const {
 		for(int k=0; k<nMatrices; k++){
 			fprintf(fp,"[[%d]]\n", k);
-			matrix[k].print("  ", fp);
+			char space[] = "  ";
+			matrix[k].print(space, fp);
 		}
 	}
 };

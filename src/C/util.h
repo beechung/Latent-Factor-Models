@@ -25,6 +25,8 @@
 
 #define CHK_SAME_NUMBER(msg, x, y) if((x != 0 || y != 0) && (fabs(x-y) / fmax(fabs(x), fabs(y)) > 1e-8)) error("Error: %s. The two number should be the same: %f vs %f (file: %s, line: %d)", msg, x, y, __FILE__, __LINE__)
 
+
+
 #define CHK_MAT_SYM(msg, A, nrow) for(int CHK_MAT_SYM_i=0; CHK_MAT_SYM_i<nrow; CHK_MAT_SYM_i++) for(int CHK_MAT_SYM_j=0; CHK_MAT_SYM_j<CHK_MAT_SYM_i; CHK_MAT_SYM_j++) CHK_SAME_NUMBER(msg, A[C_MAT(CHK_MAT_SYM_i,CHK_MAT_SYM_j,nrow)], A[C_MAT(CHK_MAT_SYM_j,CHK_MAT_SYM_i,nrow)])
 
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -34,6 +36,7 @@
 #define STOP1(msg,x) error2(__FILE__, __LINE__, msg, x)
 #define STOP2(msg,x1,x2) error2(__FILE__, __LINE__, msg, x1, x2)
 #define STOP3(msg,x1,x2,x3) error2(__FILE__, __LINE__, msg, x1, x2, x3)
+#define STOP4(msg,x1,x2,x3,x4) error2(__FILE__, __LINE__, msg, x1, x2, x3, x4)
 #define DIE_HERE error("Error in file: %s, at line: %d", __FILE__, __LINE__)
 
 void error2(const char *filename, int lineno, const char *fmt, ...);
@@ -186,6 +189,7 @@ void computeMultiResponseUV(
 	const int *nDstNodes, const int *nDstContexts,
 	const int *debug
 );
+
 
 /**
  * Draw a multivariate Gaussian vector

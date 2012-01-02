@@ -448,14 +448,16 @@ get.feature.matrix <- function(
 	x, # input data
 	id.colname,  # name of the ID column in x
 	selected.id, # a list of ID to select
-	add.intercept=FALSE # whether to add a column of all ones
+	add.intercept=FALSE, # whether to add a column of all ones
+	err.prefix="", err.x.name=NULL, err.select.name=NULL
 ){
 	if(add.intercept){ regFormula = formula(~.);   default = 1.0; }
 	else{              regFormula = formula(~.-1); default = 0.0; }
 	
 	if(is.null(x)) return(matrix(default, nrow=length(selected.id), ncol=1));
 	
-	if(!(id.colname %in% names(x))) stop("Cannot find ID column name '", id.colname,"' in input data x");
+	x.name = if(is.null(err.x.name)) "input table x" else err.x.name;
+	if(!(id.colname %in% names(x))) stop(err.prefix,"Cannot find ID column '", id.colname,"' in ",x.name);
 	if(ncol(x) == 3 && all(c(id.colname, "index", "value") %in% names(x))){
 		# Sparse format
 		nCases    = length(selected.id);
@@ -471,10 +473,18 @@ get.feature.matrix <- function(
 	}else{
 		# Dense format
 		select = match(selected.id, x[[id.colname]]);
-		if(any(is.na(select))) stop("Some IDs are not found in the input data table");
+		if(any(is.na(select))){
+			temp = if(is.null(err.select.name)) "" else paste(" in ",err.select.name,sep="");
+			stop(err.prefix,"Some IDs",temp," cannot be found in ",x.name,"$",id.colname);
+		} 
 		out = model.matrix(regFormula, x[select,-match(id.colname, names(x)),drop=FALSE]);
 	}
 	return(out);
+}
+
+is.sparse.feature <- function(x){
+	if(is.data.frame(x) && ncol(x) == 3 && all(c("index", "value") %in% names(x))) return(TRUE);
+	return(FALSE);
 }
 
 ###
@@ -589,7 +599,7 @@ logistic.lambda <- function(xi){
 ###
 output.to.dir <- function(
 	out.dir, factor, param, IDs, prediction, loglik, 
-	minTestLoss, nSamples, iter, out.level, out.append, 
+	minTestLoss, nSamples, iter, out.level, out.overwrite, 
 	TimeEStep, TimeMStep, TimeTest, verbose,
 	other=NULL, name="est"
 ){
@@ -601,11 +611,13 @@ output.to.dir <- function(
 	b.time.write = proc.time();
 	if(is.null(out.dir)) stop("Please specify out.dir");
 	if(iter == 0){
-		if(file.exists(paste(out.dir,"/",name,".last",sep="")) && !out.append){
+		if(file.exists(paste(out.dir,"/",name,".last",sep="")) && !out.overwrite){
 			stop("Output File '",out.dir,"' EXISTS!!");
 		}else if(!file.exists(out.dir)){
 			dir.create(out.dir, recursive=TRUE);
 		}
+		smry.file = paste(out.dir,"/summary",sep="");
+		if(file.exists(smry.file)) file.remove(smry.file);
 	}
 	
 	thisTestLoss = if(is.null(prediction)) -1 else prediction$test.loss;

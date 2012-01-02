@@ -263,6 +263,11 @@ void gaussianPosterior_mainEffect_2Levels(
  *   * Observation index (consider, say, user i, starting from 0); but obs indices are R indices (starting from 1, NOT 0)
  *     obsIndex[ oiStart[i]+0 ], ..., obsIndex[ oiStart[i]+oiNum[i]-1 ] are the indices of user i's observations
  *     in y, x, user, item
+ *   * If nThisContexts > 1, then localPriorVar[k] can be 0.  In this case,
+ *     u[,,k] = u_global without drawing any random number.
+ *   * If nThisContexts == 1, then nGlobalFactors and Q_size must be 0 and
+ *     Q, globalSample, globalPostMean, globalPostVar, globalPriorVar and thisContext will not be touched.
+ *   * If nOtherContexts == 1, then otherContext will not be touched.
  */
 void gaussianPosterior_2WayInteraction_2Levels(
     // OUTPUT

@@ -64,7 +64,7 @@ fit.multicontext <- function(
 	is.logistic=FALSE,
 	out.level=0,  # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
 	out.dir=NULL, # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
-	out.append=FALSE,
+	out.overwrite=FALSE,
 	debug=0,      # Set to 0 to disable internal sanity checking; Set to 100 for most detailed sanity checking
 	verbose=0,    # Set to 0 to disable console output; Set to 100 to print everything to the console
 	verbose.E=verbose,
@@ -86,27 +86,27 @@ fit.multicontext <- function(
 	else                   test.obs.for.Estep = test.obs;
 	
 	# Sanity check
-	if(out.level > 0 && is.null(out.dir)) stop("Please specify out.dir");
-	if(out.level > 0 && file.exists(out.dir) && !out.append) stop("Output directory '",out.dir,"' EXISTS!!");
+	if(out.level > 0 && is.null(out.dir)) stop("Please specify input parameter 'out.dir' when calling function fit.multicontext or run.multicontext with out.level > 0");
+	if(out.level > 0 && file.exists(out.dir) && !out.overwrite) stop("Output directory '",out.dir,"' EXISTS!!  Please remove the directory or specify a new directory for the input parameter out.dir.");
 	
 	has.u = TRUE;
 	if(is.null(factor$u)){
 		has.u = FALSE;
-		if(!is.null(factor$v) && any(obs$src.id == obs$dst.id)) stop("self vote is not allowed");
-		if(!is.null(param$var_u)) stop("model$factor$u is null, but model$param$var_u is not null");
+		if(!is.null(factor$v) && any(obs$src.id == obs$dst.id)) stop("When init.model$factor$u is disabled (i.e., init.model$factor$u = NULL), self ratings are not allowed. Please remove the rows in the input parameter 'obs' that have obs$src.id == obs$dst.id.");
+		if(!is.null(param$var_u)) stop("When init.model$factor$u is NULL, init.model$param$var_u must also be NULL. Please set init.model$param$var_u to NULL.");
 	}
-	if(is.null(nIter) && length(nSamples) == 1) stop("is.null(nIter) && length(nSamples) == 1");
+	if(is.null(nIter) && length(nSamples) == 1) stop("Please specify input parameter 'nIter' when calling function fit.multicontext or run.multicontext.");
 	if(is.null(nIter)) nIter = length(nSamples);
 	if(length(nSamples)!=nIter){
-		if(length(nSamples) != 1) stop("length(nSamples)!=nIter && length(nSamples) != 1");
+		if(length(nSamples) != 1) stop("Please check input parameters 'nSamples' and 'nIter' when calling function fit.multicontext or run.multicontext. When nSamples is a vector of more than one element, the length of the vector must equal nIter (i.e., length(nSamples) == nIter). In this case, nSamples[i] specifies the number of Gibbs samples in the i-th EM iteration. You can just set nIter=NULL to fix the problem (this would force the number of EM iteration = length(nSamples)).");
 		nSamples = rep(nSamples,nIter);
 	}
 	if(length(nBurnIn)!=nIter){
-		if(length(nBurnIn) != 1) stop("length(nBurnIn)!=nIter && length(nBurnIn) != 1");
+		if(length(nBurnIn) != 1) stop("Please check input parameter 'nBurnIn' when calling function fit.multicontext or run.multicontext. nBurnIn should either be a scalar (i.e., length(nBurnIn) == 1) or a vector with length equal to the length of nSamples (i.e., length(nBurnIn) = length(nSamples))");
 		nBurnIn = rep(nBurnIn,nIter);
 	}
 	if(!is.null(test.obs)){
-		if(is.null(test.feature)) stop("test.obs != NULL, but test.feature is NULL");
+		if(is.null(test.feature)) stop("Please check input parameters 'test.obs' and 'test.feature' when calling function fit.multicontext or run.multicontext. Notice that test.obs != NULL, but test.feature is NULL. Please either set test.obs = NULL or specify test.feature.");
 	}
 	if(is.null(names(ridge.lambda)) && length(ridge.lambda) == 1){
 		ridge.lambda = rep(ridge.lambda, 7);
@@ -127,11 +127,11 @@ fit.multicontext <- function(
 		if(!is.null(test.feature) && is.null(test.feature$x_ctx)) test.feature$x_ctx = array(0.0, dim=c(nEdgeContexts,0));
 	}
 	
-	if(!all(names(ridge.lambda) %in% c("b","g0","d0","h0","G","D","H")))  stop("names(ridge.lambda) is not specified correctly");
-	if(!all(names(zero.mean) %in% c("alpha","beta","gamma","u","v","w"))) stop("names(zero.mean) is not specified correctly");
-	if(!all(names(fix.var) %in% c("alpha","beta","gamma","u","v","w")))   stop("names(fix.var) is not specified correctly");
+	if(!all(names(ridge.lambda) %in% c("b","g0","d0","h0","G","D","H")))  stop("Please check input parameter 'ridge.lambda' when calling function fit.multicontext or run.multicontext. names(ridge.lambda) is not specified correctly. The only allowable names are 'b', 'g0', 'd0', 'h0', 'G', 'D', 'H'.");
+	if(!all(names(zero.mean) %in% c("alpha","beta","gamma","u","v","w"))) stop("Please check input parameter 'zero.mean' when calling function fit.multicontext or run.multicontext. names(zero.mean) is not specified correctly. The only allowable names are 'alpha', 'beta', 'gamma', 'u', 'v', 'w'.");
+	if(!all(names(fix.var) %in% c("alpha","beta","gamma","u","v","w")))   stop("Please check input parameter 'fix.var' when calling function fit.multicontext or run.multicontext. names(fix.var) is not specified correctly. The only allowable names are 'alpha', 'beta', 'gamma', 'u', 'v', 'w'."); 
 	
-	warning.any.not.in(c("alpha", "beta"), names(factor), "The following components in factor are required: ", stop=TRUE);
+	warning.any.not.in(c("alpha", "beta"), names(factor), "Please check input parameter 'init.model' when calling function fit.multicontext or run.multicontext. The following components in init.model$factor are required: ", stop=TRUE);
 	
 	# Initialize obs for the logistic model
 	obs      = init.obs(obs=obs,      is.logistic=is.logistic);
@@ -189,7 +189,7 @@ fit.multicontext <- function(
 	output.to.dir(
 			out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
 			prediction=prediction, loglik=loglik$CD, 
-			minTestLoss=minTestLoss, nSamples=nSamples, iter=0, out.level=out.level, out.append=out.append, 
+			minTestLoss=minTestLoss, nSamples=nSamples, iter=0, out.level=out.level, out.overwrite=out.overwrite, 
 			TimeEStep=0, TimeMStep=0, TimeTest=time.used[3], verbose=verbose, name="model"
 	);
 	
@@ -246,7 +246,7 @@ fit.multicontext <- function(
 			output.to.dir(
 				out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
 				prediction=prediction, loglik=loglik.E$CD, 
-				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.append=out.append, 
+				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite, 
 				TimeEStep=time.used.1[3], TimeMStep=0, TimeTest=time.used.TestLoss[3], verbose=verbose,
 				other=list(mc_e=mc_e), name="model-end-of-E"
 			);
@@ -291,7 +291,11 @@ fit.multicontext <- function(
 		}
 		time.used.3 = proc.time() - b.time.test;
 		
-		if(verbose >= 1 && !is.null(test.obs)) cat("      test loss:       ", prediction$test.loss, " (",time.used.TestLoss[3]," sec)\n",sep="");
+		if(verbose >= 1){
+			cat("  training loss:       ", attr(loglik$CD,"loss"), " (",time.used.TestLoss[3]," sec)\n",sep="");			
+			if(!is.null(test.obs)) 
+			cat("      test loss:       ", prediction$test.loss, " (",time.used.TestLoss[3]," sec)\n",sep="");
+		} 
 		
 		###
 		### Update the model.minTestLoss model if the TestLoss decreases
@@ -307,7 +311,7 @@ fit.multicontext <- function(
 		output.to.dir(
 				out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
 				prediction=prediction, loglik=loglik$CD, 
-				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.append=out.append, 
+				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite, 
 				TimeEStep=time.used.1[3], TimeMStep=time.used.2[3], TimeTest=time.used.3[3], verbose=verbose, name="model"
 		);
 	}
@@ -349,13 +353,13 @@ run.multicontext <- function(
 	reg.control=NULL,  # The control paramter for reg.algo
 	# initialization parameters
 	var_alpha=1, var_beta=1, var_gamma=1, 
-	var_v=1, var_u=1, var_w=1, var_y=1,
+	var_v=1, var_u=1, var_w=1, var_y=NULL,
 	relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 	# others
 	IDs=NULL,
 	out.level=0,  # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
 	out.dir=NULL, # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
-	out.append=FALSE,
+	out.overwrite=FALSE,
 	debug=0,      # Set to 0 to disable internal sanity checking; Set to 100 for most detailed sanity checking
 	verbose=0,    # Set to 0 to disable console output; Set to 100 to print everything to the console
 	verbose.E=verbose,
@@ -371,19 +375,20 @@ run.multicontext <- function(
 	rnd.seed.init=NULL, rnd.seed.fit=NULL
 ){
 	if(length(unique(setting$name)) != nrow(setting)) stop("setting$name not unique!!");
-	if(!out.append){
+	if(!out.overwrite){
 		for(k in 1:nrow(setting)){
-			file = paste(out.dir,"_",setting[k,"name"],"/model.last",sep="");
-			if(file.exists(file)) stop("File exists: ",file);
+			temp = paste(out.dir,"_",setting[k,"name"],sep="");
+			file = paste(temp,"/model.last",sep="");
+			if(file.exists(file)) stop("Please check input parameters 'out.overwrite' and 'out.dir' when calling function run.multicontext. Directory '",temp,"' already exists. Please either remove the directory or set out.overwrite = TRUE to overwrite the existing directory.");
 		}
 	}
-	if(!all(setting$has.u %in% c(TRUE, FALSE))) stop("setting$has.u should be TRUE/FALSE");
-	if(!all(setting$has.gamma %in% c(TRUE, FALSE))) stop("setting$has.gamma should be TRUE/FALSE");
-	if(!all(setting$is.logistic %in% c(TRUE, FALSE))) stop("setting$is.logistic should be TRUE/FALSE");
-	if(!all(setting$nFactors >= 0)) stop("setting$nFactors = ",setting$nFactors);
-	if(!all(setting$nLocalFactors >= 0)) stop("setting$nLocalFactors = ",setting$nLocalFactors);
+	if(!all(setting$has.u %in% c(TRUE, FALSE))) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$has.u should be either TRUE or FALSE.");
+	if(!all(setting$has.gamma %in% c(TRUE, FALSE))) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$has.gamma should be either TRUE or FALSE.");
+	if(!all(setting$is.logistic %in% c(TRUE, FALSE))) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$is.logistic should be either TRUE or FALSE.");
+	if(!all(setting$nFactors >= 0)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$nFactors = ",setting$nFactors,", which should be >= 0.");
+	if(!all(setting$nLocalFactors >= 0)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$nLocalFactors = ",setting$nLocalFactors,", which should be >= 0.");
 	nEdgeContexts = if(is.null(obs$edge.context)) 0 else max(obs$edge.context);
-	if(any(setting$nLocalFactors != 0 & setting$nFactors != setting$nLocalFactors * nEdgeContexts)) stop("setting$nFactors != setting$nLocalFactors * max(obs$edge.context)");
+	if(any(setting$nLocalFactors != 0 & setting$nFactors != setting$nLocalFactors * nEdgeContexts)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$nFactors must = setting$nLocalFactors * max(obs$edge.context).");
 	
 	out = list(summary=setting);
 	out$summary$best.CD.loglik = NA;
@@ -414,7 +419,7 @@ run.multicontext <- function(
 			obs=obs, feature=feature, init.model=init, nSamples=nSamples, nBurnIn=nBurnIn, nIter=nIter,
 			test.obs=test.obs, test.feature=test.feature,
 			IDs=IDs, is.logistic=setting[k,"is.logistic"],
-			out.level=out.level, out.dir=paste(out.dir,"_",name,sep=""), out.append=out.append,
+			out.level=out.level, out.dir=paste(out.dir,"_",name,sep=""), out.overwrite=out.overwrite,
 			debug=debug,
 			verbose=verbose, verbose.E=verbose.E, verbose.M=verbose.M,
 			use.C=use.C, error.handler=error.handler,
@@ -465,11 +470,11 @@ MCEM_EStep.multicontext.C <- function(
 	
 	if(is.null(test.obs))             nTestObs = as.integer(0)
 	else if(is.data.frame(test.obs))  nTestObs = as.integer(nrow(test.obs))
-	else stop("Unknown type for test.obs");
+	else stop("test.obs should be either NULL or a data frame.");
 	
-	if(is.null(factor$alpha)) stop("alpha cannot be null");
-	if(is.null(factor$beta))  stop("beta cannot be null");
-	if(length(obs) == 0) stop("No observation data");
+	if(is.null(factor$alpha)) stop("factor$alpha cannot be null");
+	if(is.null(factor$beta))  stop("factor$beta cannot be null");
+	if(nrow(obs) == 0) stop("No observation data (i.e., nrow(obs) == 0)");
 	
 	# Prepare the feature-based prior
 	xb = reg.predict(model=param$b, x=feature$x_obs, algo=param$reg.algo);
@@ -640,8 +645,8 @@ init.simple.random <- function(
 	
 	if(!is.null(nLocalFactors) && nLocalFactors == 0) nLocalFactors = NULL;
 	
-	if(!has.u && nSrcNodes != nDstNodes) stop("!has.u && nSrcNodes != nDstNodes");
-	if(has.gamma && nEdgeContexts == 0) stop("has.gamma && nEdgeContexts == 0");
+	if(!has.u && nSrcNodes != nDstNodes) stop("When has.u = FALSE, the number of source nodes should be the same as the number of destination nodes (i.e., nrow(feature$x_src) == nrow(feature$x_dst)).");
+	if(has.gamma && nEdgeContexts == 0) stop("When has.gamma = TRUE, obs$edge.context cannot be NULL");
 	if(!is.null(nLocalFactors) && nFactors != nLocalFactors*nEdgeContexts) stop("nFactors != nLocalFactors*nEdgeContexts");
 	
 	b = rep(0, ncol(feature$x_obs));
@@ -649,10 +654,10 @@ init.simple.random <- function(
 		if(is.null(var_y)) var_y = 1;
 		y = obs$y;
 		y.values = unique(y);
-		if(length(y.values) != 2) stop("length(y.values) != 2");
+		if(length(y.values) != 2) stop("When is.logistic = TRUE, the response should be binary: obs$y belongs to either {0, 1} or {-1, 1}.");
 		y.values = sort(y.values);
 		if(all(y.values == c(-1, 1))) y[y == -1] = 0;
-		if(any(y.values != c( 0, 1))) stop("any(y.values != c( 0, 1))");
+		if(any(y.values != c( 0, 1))) stop("When is.logistic = TRUE, the response should be binary: obs$y belongs to either {0, 1} or {-1, 1}.");
 		y.mean = mean(y);
 		bias = log(y.mean / (1-y.mean));
 		if(all(feature$x_obs[,1] == 1)){

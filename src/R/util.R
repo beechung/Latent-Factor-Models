@@ -4,14 +4,38 @@
 ### Author: Bee-Chung Chen
 
 ###
+### Replace some rows of x by the rows in y
+###   Join by x[,key] and y[,key]
+###   then set x[,intersect(names(x),names(y))] = y[,intersect(names(x),names(y))]
+###
+replace.data.frame <- function(x, y, key){
+	if(!all(key %in% names(x))) stop("Join key is not in x");
+	if(!all(key %in% names(y))) stop("Join key is not in y");
+	if(length(key)==1 && nrow(y) != length(unique(y[,key]))) stop("Join key is not unique in y");
+	if(length(key)>=2 && nrow(y) != nrow(unique(y[,key]))) stop("Join key is not unique in y");
+	attrs = intersect(names(x),names(y));
+	attrs.x1 = c(setdiff(names(x),names(y)), key);
+	x1 = x[x[,key] %in% y[,key],attrs.x1];
+	x2 = x[!(x[,key] %in% y[,key]),];
+	x3 = merge(x1,y)[,names(x)];
+	if(nrow(x3) != nrow(x1)) stop("something is wrong");
+	out = rbind(x2,x3);
+}
+
+###
 ### Convert a matrix into the (row,col,value) format
 ###
-matrix.to.index.value <- function(x){
+matrix.to.index.value <- function(x, order.by=NULL){
 	if(!is.matrix(x)) stop("The input is not a matrix");
 	select = (!is.na(x)) & (x != 0);
 	row.index = rep(1:nrow(x), times=ncol(x));
 	col.index = rep(1:ncol(x), each =nrow(x));
 	out = data.frame(row=row.index[select], col=col.index[select], value=x[select]);
+	if(!is.null(order.by)){
+		if(order.by == "row"){ out = out[order(out$row, out$col),];} else
+		if(order.by == "col"){ out = out[order(out$col, out$row),];}
+		else stop("order.by must be either 'row' or 'col'");
+	}
 	return(out);
 }
 
@@ -297,7 +321,12 @@ is.diff <- function(x1, x2, precision=1e-10, prefix=""){
 check_type_size <- function(x, type, size, isNullOK=FALSE, check.NA=TRUE, name=NULL){
 	if(is.null(name)) name = "The input"
 	if(is.null(x)){
-		if(any(size == 0) || isNullOK) return(TRUE)
+		if(isNullOK) return(TRUE);
+		if(is.list(size)){
+			for(i in 1:length(size)) if(any(size[[i]] == 0)) return(TRUE);
+			stop(name," is null");
+		}
+		if(any(size == 0)) return(TRUE)
 		else stop(name," is null");
 	}
 	if(type == "double"){
@@ -305,9 +334,24 @@ check_type_size <- function(x, type, size, isNullOK=FALSE, check.NA=TRUE, name=N
 	}else if(type == "integer" || type == "int"){
 		if(!is.integer(x)) stop(name," should be integer");
 	}else stop("Unknown type: ",type,sep="");
+	
 	d = dim(x);
 	if(is.null(d)) d = length(x);
-	if(length(d) != length(size) || any(d != size)) stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size,collapse=" x "),")");
+	if(is.list(size)){
+		dim.correct = FALSE;
+		for(i in 1:length(size)){
+			if(length(d) == length(size[[i]]) && all(d == size[[i]])){dim.correct = TRUE; break;}
+		}
+		if(!dim.correct){
+			if(length(size) == 1) stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size[[1]],collapse=" x "),")");
+			if(length(size) == 2) stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size[[1]],collapse=" x "),") or (",paste(size[[2]],collapse=" x "),")");
+			if(length(size) == 3) stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size[[1]],collapse=" x "),") or (",paste(size[[2]],collapse=" x "),") or (",paste(size[[3]],collapse=" x "),")");
+			stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size[[1]],collapse=" x "),") or (",paste(size[[2]],collapse=" x "),") or (",paste(size[[3]],collapse=" x "),") ...");
+		}
+	}else{
+		if(length(d) != length(size) || any(d != size)) stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size,collapse=" x "),")");
+	}
+	
 	if(check.NA && any(is.na(x))) stop(name," has some elements that are NA");
 }
 
@@ -350,12 +394,32 @@ length.unique <- function(x){
 	return(length(unique(x)));
 }
 
+is.same.data.frame <- function(x, y){
+	if(!is.data.frame(x)) stop("x is not a data frame");
+	if(!is.data.frame(y)) stop("y is not a data frame");
+	if(any(dim(x) != dim(y))) return(FALSE);
+	if(!is.null(names(x)) && !is.null(names(y)) && any(names(x) != names(y))) return(FALSE);
+	eq = (x == y);
+	if(any(is.na(eq))){
+		same.na = (is.na(x) == is.na(y));
+		eq[is.na(eq)] = same.na[is.na(eq)];
+	}
+	return(all(eq));
+}
+
 ###
 ### Per-group AUC / precision at k / RMSE
 ###	method: auc, prec, rmse
 ### pred.y: a vector of column names in data
 ### true.y and by are column names in data
-metric.perGroup <- function(data, pred.y, true.y, by, method, topK=NULL, minObs.perGroup=0){
+metric.perGroup <- function(
+	data, # data.frame that include column names specified in pred.y, true.y and by
+	pred.y, true.y, # column names
+	by,   # the name of the group-by column
+	method, 
+	topK=NULL,
+	minObs.perGroup=0
+){
 	if(!(true.y %in% names(data))) stop("true.y=",true.y," is not in names(data)");
 	if(!(by %in% names(data))) stop("by=",by," is not in names(data)");
 	if(!all(pred.y %in% names(data))) stop("!all(pred.y %in% names(data))");
@@ -475,4 +539,136 @@ getMVNSample <- function(mean, var=NULL, var.inv=NULL, FUN=my_rmvnorm){
 		}
 	}
 	return(output);
+}
+
+cross.table <- function(x, y, 
+	grand.total=TRUE,   # whether to show grand total
+	fraction.by=NULL,   # "row" or "col" sum up to one
+	percentage.by=NULL, # "row" or "col" sum up to one
+	...
+){
+	if(!is.null(fraction.by) && !(fraction.by %in% c("row", "col"))) stop("fraction.by must be either 'row' or 'col'");
+	if(!is.null(percentage.by) && !(percentage.by %in% c("row", "col"))) stop("percentage.by must be either 'row' or 'col'");
+	if(!is.null(percentage.by) && !is.null(fraction.by)) stop("You cannot specify both fraction.by and percentage.by");
+	tab = table(x, y, ...);
+	by = NULL; if(!is.null(fraction.by)) by = fraction.by;  if(!is.null(percentage.by)) by = percentage.by;
+	multiplier = if(!is.null(percentage.by)) 100 else 1;
+	
+	if(grand.total || !is.null(by)){
+		x.total = aggregate(rep(1,length(x)), list(x), length);
+		y.total = aggregate(rep(1,length(y)), list(y), length);
+		if(!is.null(by)){
+			if(     by == "row"){ temp = matrix(x.total[,2], byrow=FALSE, nrow=nrow(tab),ncol=ncol(tab));}
+			else if(by == "col"){ temp = matrix(y.total[,2], byrow=TRUE,  nrow=nrow(tab),ncol=ncol(tab));}
+			else stop("what??");
+			tab = (tab / temp) * multiplier;
+		}
+	}
+	if(grand.total){
+		out = matrix(0, nrow=nrow(tab)+1, ncol=ncol(tab)+1);
+		attr(out, "dimnames") = list(c(dimnames(tab)[[1]], "TOTAL"), c(dimnames(tab)[[2]], "TOTAL"));
+		out[1:nrow(tab),1:ncol(tab)] = tab;
+		out[x.total[,1], ncol(out)] = x.total[,2];
+		out[nrow(out), y.total[,1]] = y.total[,2];
+		total = sum(x.total[,2]);
+		out[nrow(out), ncol(out)] = total;
+		if(!is.null(by)){
+			if(     by == "row"){ out[nrow(out),1:ncol(tab)] = (out[nrow(out),1:ncol(tab)] / total) * multiplier;}
+			else if(by == "col"){ out[1:nrow(tab),ncol(out)] = (out[1:nrow(tab),ncol(out)] / total) * multiplier;}
+			else stop("what??");
+		}
+	}else{
+		out = matrix(0, nrow=nrow(tab), ncol=ncol(tab));
+		attr(out, "dimnames") = list(c(dimnames(tab)[[1]]), c(dimnames(tab)[[2]]));
+		out[1:nrow(tab),1:ncol(tab)] = tab;
+	}
+	return(out);
+}
+
+my.print.table <- function(
+	x,    # matrix or data.frame
+	num.format=NULL, # format for numbers using sprintf
+	latex=FALSE,
+	show.rownames=TRUE, show.colnames=TRUE,
+	justify="right", begin="", sep=" ", end="",
+	...
+){
+	if(!latex && is.null(num.format)){ print(x,...); return();}
+	if(!is.data.frame(x) && !is.matrix(x)) stop("input data must be a matrix or data frame");
+	row.name = if(show.rownames) rownames(x) else NULL;
+	col.name = if(show.colnames) colnames(x) else NULL;
+	if(is.matrix(x)) x = data.frame(x, stringsAsFactors=FALSE);
+	M = if(is.null(col.name)) nrow(x) else nrow(x)+1;
+	N = if(is.null(row.name)) ncol(x) else ncol(x)+1;
+	y = matrix("", nrow=M, ncol=N);
+	k=0;
+	if(!is.null(row.name)){
+		if(!is.null(col.name)) row.name = c("", row.name);
+		row.name = format(row.name, justify=justify);
+		y[,1] = row.name; k=1;
+	}
+	for(i in 1:ncol(x)){
+		if(is.logical(x[,i])){ x[,i] = x[,i]+0; }
+		else if(is.integer(x[,i])){ x[,i] = sprintf("%d", x[,i]); }
+		else if(is.numeric(x[,i]) && !is.null(num.format)){ x[,i] = sprintf(num.format, x[,i]); }
+		else if(is.factor(x[,i])){ x[,i] = as.character(x[,i]); }
+		y[,i+k] = format(c(col.name[i], x[,i]), justify=justify);
+	}
+	if(latex){  sep=" & "; end=" \\\\";}
+	for(i in 1:nrow(y)){
+		cat(begin,sep=""); cat(y[i,],sep=sep); cat(end,"\n",sep="");
+	}
+}
+
+logit <- function(x){
+	return(log(x) - log(1-x));
+}
+
+###
+### Allow default values for NA
+###
+my.merge <- function(x, y, ..., na.as=NULL){
+	out = merge(x=x, y=y, ...);
+	if(!is.null(na.as)){
+		for(i in 1:ncol(out)){
+			select = is.na(out[,i]);
+			if(any(select)) out[select,i] = na.as;
+		}
+	}
+	return(out);
+}
+
+###
+### aggregate.char: Make aggregate faster for characters
+### (it doesn't really matter)
+###
+aggregate.char <- function(x, by, FUN, ..., sep="\t"){
+	if(!is.data.frame(by)){
+		if(!is.list(by) && is.vector(by)) by = list(Group.1=by);
+		if(is.list(by)){
+			if(is.null(names(by))) names(by) = paste("Group",1:length(by),sep=".");
+			by = data.frame(by, stringsAsFactors=FALSE);
+		}else stop("by should be a data.frame, list or vector");
+	}
+	group.names = names(by);
+	str.by = by[,1];
+	if(ncol(by) > 1){ for(i in 2:ncol(by)){
+		str.by = paste(str.by, by[,i], sep=sep);
+	}}
+	str.keys = unique(str.by);
+	by$..GROUP_ID.. = match(str.by, str.keys);
+	temp = aggregate(x=x, by=by["..GROUP_ID.."], FUN=FUN, ...);
+	out = merge(by, temp, by="..GROUP_ID..")[,c(group.names, "x")];
+	return(out);
+}
+
+###
+### Smooth ratio  (x + mean*size) / (y + size)
+### if(mean is null) mean = sum(x) / sum(y)
+###
+smooth.ratio <- function(
+	x, y, mean=NULL, size
+){
+	if(is.null(mean)) mean = sum(as.double(x)) / sum(as.double(y));
+	return( (x + mean*size) / (y + size) );
 }

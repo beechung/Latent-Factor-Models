@@ -114,7 +114,7 @@ ans = run.multicontext(
 		IDs=data.test$IDs,
 		out.level=1,         # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
 		out.dir="/tmp/test", # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
-		out.append=TRUE,     # whether to overwrite the output directory if it exists
+		out.overwrite=TRUE,     # whether to overwrite the output directory if it exists
 		debug=0,      # Set to 0 to disable internal sanity checking; Set to 100 for most detailed sanity checking
 		verbose=1,    # Set to 0 to disable console output; Set to 100 to print everything to the console
 		verbose.M=2
@@ -206,8 +206,9 @@ str(x_dst);
 # (2) Create training/test split
 set.seed(1);
 select.train = sample(nrow(rating.data), floor(nrow(rating.data)*0.75));
-obs.train = rating.data[ select.train,];  x_obs.train = x_obs[  x_obs$obs_id %in% select.train, ];
-obs.test  = rating.data[-select.train,];  x_obs.test  = x_obs[!(x_obs$obs_id %in% select.train),];
+select.test  = setdiff(1:nrow(rating.data), select.train);
+obs.train = rating.data[select.train,];  x_obs.train = x_obs[x_obs$obs_id %in% select.train,];  x_obs.train$obs_id = match(x_obs.train$obs_id, select.train);
+obs.test  = rating.data[select.test, ];  x_obs.test  = x_obs[x_obs$obs_id %in% select.test, ];  x_obs.test$obs_id  = match(x_obs.test$obs_id,  select.test);
 
 # (3) Index training data
 #     See src/R/model/multicontext_model_utils.R: indexData() for details
@@ -260,7 +261,7 @@ ans = run.multicontext(
 		rnd.seed.init=rnd.seed, rnd.seed.fit=rnd.seed,
 		out.level=1,         # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
 		out.dir="/tmp/test", # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
-		out.append=TRUE,     # whether to overwrite the output directory if it exists
+		out.overwrite=TRUE,     # whether to overwrite the output directory if it exists
 		debug=0,      # Set to 0 to disable internal sanity checking; Set to 100 for most detailed sanity checking
 		verbose=1,    # Set to 0 to disable console output; Set to 100 to print everything to the console
 		verbose.M=2
