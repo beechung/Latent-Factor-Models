@@ -1,0 +1,67 @@
+\documentclass[10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\newcommand{\parahead}[1]{\vspace{0.15in}\noindent{\bf #1:}}
+
+\begin{document}
+\title{How to Run the Latent Factor Model Code}
+\author{Bee-Chung Chen}
+\maketitle
+
+\section{Preparation}
+
+Before you can use this code to fit any model, you need to install R (with R version $\geq$ 2.10.1) and compile the C/C++ code in this package.
+
+\subsection{Install R}
+
+To install R, go to {\tt http://www.r-project.org/}.  Click CRAN on the left panel.  Pick a CRAN mirror.  Then, install R from the R source code.
+
+Alternatively, you can install R using linux's package management software.  In this case, please install {\tt r-base}, {\tt r-base-core}, {\tt r-base-dev}, {\tt r-recommended}.
+
+After installing R, install the following R packages: {\tt Matrix} and {\tt glmnet}.  Notice that these two packages are not required if you do not need to handle sparse feature vectors or matrices.  To install these R packages, use the following commands in R.\\
+{\tt
+> install.packages("Matrix");\\
+> install.packages("glmnet");
+}
+
+\subsection{Compile C/C++ Code}
+
+This is extremely simple.  Just type {\tt make} in the top-level directory (i.e., the directory that contains LICENSE, README, Makefile, Makevars, etc.).
+
+\section{Bias-Smoothed Tensor Model}
+
+The bias-smoothed tensor (BST) model~\cite{bst:kdd11} includes the regression-based latent factor model (RLFM)~\cite{rlfm:kdd09} and regular matrix factorization models as special cases.  In fact, the BST model presented here is a bit more general than the model presented in~\cite{bst:kdd11}.  In the following, I demonstrate how to fit such a model and its special cases.  The R code of this section can be found in {\tt src/R/examples/tutorial-BST.R}.
+
+\subsection{Model}
+
+We first specify the model in its most general form and then describe special cases.  Let $y_{ijkpq}$ denote the {\em response} (e.g., rating) that {\em source node} $i$ (e.g., user $i$) gives {\em destination node} $j$ (e.g., item $j$) in {\em context} $(k,p,q)$, where the context is specified by a three dimensional vector:
+\begin{itemize}
+\item {\em Edge context} $k$ specifies the context when the response occurs on the edge from node $i$ to node $j$; e.g., the rating on the edge from user $i$ to item $j$ was given when $i$ saw $j$ on web page $k$.
+\item {\em Source context} $p$ specifies the context (or mode) of the source node $i$ when this node gives the response; e.g., $p$ represents the category of item $j$, meaning that user $i$ are in different modes when rating items in different categories.
+\item {\em Destination context} $q$ specifies the context (or mode) of the destination node $j$ when this node receives the response; e.g., $q$ represents the user segment that user $i$ belongs to, meaning that the response that an item receives depends on the segment that the user belongs to.
+\end{itemize}
+Notice that the context $(k,p,q)$ is assumed to be given and each individual response is assumed to occur in a single context.  Also note that when modeling a problem, we may not always need all the three components in the three dimensional context vector.
+
+Because $i$ always denotes a source node (e.g., a user), $j$ always denotes a destination node (e.g., an item) and $k$ always denotes an edge context, we slightly abuse our notation by using $\bm{x}_i$ to denote the feature vector of source node $i$, $\bm{x}_j$ to denote the feature vector of destination node $j$, $\bm{x}_k$ to denote the feature vector of edge context $k$, and $\bm{x}_{ijk}$ to denote the feature vector associated with the occasion when $i$ gives $j$ the response in context $k$.
+
+\parahead{Response model}
+For numeric response, we use the Gaussian response model; for binary response, we use the logistic response model.
+\begin{equation*}
+y_{ijkpq} \sim \mathcal{N}(\mu_{ijkpq},~ \sigma^2_{y}) ~\textrm{ or }~
+y_{ijkpq} \sim \textit{Bernoulli}((1 + \exp(-\mu_{ijkpq}))^{-1}),
+\end{equation*}
+where $\mu_{ijkpq} = \bm{x}'_{ijk} \bm{b} + \alpha_{ip} + \beta_{jq} + \gamma_{k} + \left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$.  Note that $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right> = \sum_{\ell} \bm{u}_i[\ell]\, \bm{v}_j[\ell]\, \bm{w}_k[\ell]$ is a form of the tensor product of three vectors $\bm{u}_i$, $\bm{v}_j$ and $\bm{w}_k$, where $\bm{u}_i[\ell]$ denotes the $\ell$th element in vector $\bm{u}_i$.
+For ease of exposition, we use the following notation to represent both the Gaussian and logistic models.
+$$
+y_{ijkpq} \sim \bm{x}'_{ijk} \bm{b} + \alpha_{ip} + \beta_{jq} + \gamma_{k} + \left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>,
+$$
+where $\bm{b}$ is the regression coefficient vector on feature vector $\bm{x}_{ijk}$; $\alpha_{ip}$ is the latent factor of source node $i$ in source context $p$; $\beta_{jq}$ is the latent factor of destination node $j$ in destination context $q$; $\gamma_{k}$ is the latent factor of edge context $k$; $\bm{u}_i$, $\bm{v}_j$ and $\bm{w}_k$ are the latent factor vectors of source node $i$, destination node $j$ and edge context $k$, respectively.  Note that these latent factors and regression coefficients will be learned from data.
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{references}
+
+\end{document}
