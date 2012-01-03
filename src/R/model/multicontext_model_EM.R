@@ -374,7 +374,7 @@ run.multicontext <- function(
 	max.nObs.for.b=NULL,# maximum number of observations to be used to fit b
 	rnd.seed.init=NULL, rnd.seed.fit=NULL
 ){
-	if(length(unique(setting$name)) != nrow(setting)) stop("setting$name not unique!!");
+	if(length(unique(setting$name)) != nrow(setting)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$name must be a column of unique identifiers");
 	if(!out.overwrite){
 		for(k in 1:nrow(setting)){
 			temp = paste(out.dir,"_",setting[k,"name"],sep="");
@@ -389,6 +389,10 @@ run.multicontext <- function(
 	if(!all(setting$nLocalFactors >= 0)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$nLocalFactors = ",setting$nLocalFactors,", which should be >= 0.");
 	nEdgeContexts = if(is.null(obs$edge.context)) 0 else max(obs$edge.context);
 	if(any(setting$nLocalFactors != 0 & setting$nFactors != setting$nLocalFactors * nEdgeContexts)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$nFactors must = setting$nLocalFactors * max(obs$edge.context).");
+	if(any(!setting$has.u) && !is.null(IDs$SrcIDs) && !is.null(IDs$DstIDs)){
+		if(length(IDs$SrcIDs) != length(IDs$DstIDs) || any(IDs$SrcIDs != IDs$DstIDs))
+			stop("Please check input parameters 'setting' and 'obs' when calling function run.multicontext: Some row of setting$has.u is FALSE, but obs is indexed in a way that does not support this option. Please call function indexData with src.dst.same=TRUE before calling function run.multicontext.");
+	}
 	
 	out = list(summary=setting);
 	out$summary$best.CD.loglik = NA;

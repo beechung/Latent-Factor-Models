@@ -114,11 +114,17 @@ indexData <- function(
 	
 	# check NA
 	select = rep(TRUE, nrow(out$obs));
-	for(name in c("src_id", "dst_id", "src_context", "dst_context", "ctx_id")){
-		if(rm.obs.mismatch){
-			select = select & (!is.na(out$obs[[name]]));
-		}else{
-			if(!is.null(out$obs[[name]]) && any(is.na(out$obs[[name]]))) stop("obs$",name," contains NA (mismatch)");
+	in.name  = c("src_id", "dst_id", "src_context", "dst_context", "ctx_id");
+	out.name = c("src.id", "dst.id", "src.context", "dst.context", "edge.context");
+	id.name  = c("SrcIDs", "DstIDs", "SrcContexts", "DstContexts", "CtxIDs");
+	for(i in 1:length(in.name)){
+		name = out.name[i];
+		if(!is.null(out$obs[[name]])){
+			if(rm.obs.mismatch){
+				select = select & (!is.na(out$obs[[name]]));
+			}else{
+				if(any(is.na(out$obs[[name]]))) stop("Please check input parameters 'obs' and '",id.name[i],"' when calling function indexData: Some IDs in obs$",in.name[i]," cannot be found in ",id.name[i]);
+			}
 		}
 	}
 	if(rm.obs.mismatch && !all(select)){
@@ -145,7 +151,7 @@ indexData <- function(
 			err.prefix="Please check input parameters 'x_ctx' and 'obs' when calling function indexData or indexTestData: ", err.x.name="x_ctx", err.select.name="obs$ctx_id"
 		);
 	}else{
-		if(!is.null(x_ctx)) stop("No edge context, but has x_ctx");
+		if(!is.null(x_ctx)) stop("Please check input parameters 'x_ctx' and 'obs' when calling function indexData or indexTestData: When obs$ctx_id = NULL, x_ctx must also = NULL");
 	}
 	out$add.intercept   = add.intercept;
 	out$src.dst.same    = src.dst.same;
