@@ -74,7 +74,7 @@ where $\bm{g}_p$, $q_p$, $\bm{d}_q$, $r_q$, $G$, $D$ and $H$ are regression coef
 
 \subsection{Toy Dataset}
 
-Before we describe how to fit a model, we first introduce a toy dataset.  You can find this toy dataset in the following directory:
+In the following, we describe a toy dataset.  You can put your data in the same format to fit the model to your data.  This toy dataset is in the following directory:
 \begin{verbatim}
 test-data/multicontext_model/simulated-mtx-uvw-10K
 \end{verbatim}
@@ -87,9 +87,142 @@ This is a simulated dataset; i.e., the response values $y_{ijkpq}$ are generated
 \begin{verbatim}
 > load("test-data/multicontext_model/simulated-mtx-uvw-10K/ground-truth.RData");
 > str(factor);
-> str(param)
+> str(param);
 \end{verbatim}
 }
+
+\parahead{Response Data}
+The response data, also called observation data, is in {\tt obs-train.txt} and {\tt obs-test.txt}.  Each file has six columns:
+\begin{enumerate}
+\item {\tt src\_id}: Source node ID (e.g., user $i$).
+\item {\tt dst\_id}: Destination node ID (e.g., item $j$).
+\item {\tt src\_context}: Source context ID (e.g., source context $p$).
+\item {\tt dst\_context}: Destination context ID (e.g., destination context $q$).
+\item {\tt ctx\_id}: Edge context ID (e.g., edge context $k$).
+\item {\tt y}: Response (e.g., the rating that user $i$ gives item $j$ in context $(k,p,q)$).
+\end{enumerate}
+Note that all of the above IDs can be numbers or character strings.
+To read {\tt obs-train.txt}, run the following commands in R.
+{\small
+\begin{verbatim}
+> input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+> obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
+  sep="\t", header=FALSE, as.is=TRUE);
+> names(obs.train) = c("src_id", "dst_id", "src_context", 
+  "dst_context", "ctx_id", "y");
+\end{verbatim}
+}
+It is important to note that the {\bf column names} of an observation table have to be exactly {\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context}, {\tt ctx\_id} and {\tt y}.  The model fitting code does not recognize other names.
+
+\parahead{Source, Destination and Context Features}
+The features vectors of source nodes ($\bm{x}_i$), destination nodes ($\bm{x}_j$), edge contexts ($\bm{x}_k$) and training and test observations ($\bm{x}_{ijk}$) are in \\
+\indent{\tt {\it type}-feature-user.txt}, \\
+\indent{\tt {\it type}-feature-item.txt}, \\
+\indent{\tt {\it type}-feature-ctxt.txt}, \\
+where {\it type} = "dense" for the dense format and {\it type} = "sparse" for the sparse format.
+
+For the dense format, take {\tt dense-feature-user.txt} for example.  The first column is {\tt src\_id} (the {\tt src\_id} column in the observation table refers to this column to get the feature vector of the source node for each observation).  It is important to note that the {\bf name of the first column} has to be exactly {\tt src\_id}.  The rest of the columns specify the feature values and the column names can be arbitrary.
+
+For the sparse format, take {\tt sparse-feature-user.txt} for example.  It has three columns:
+\begin{enumerate}
+\item {\tt src\_id}: Source node ID
+\item {\tt index}: Feature index (starting from 1, not 0)
+\item {\tt value}: Feature value
+\end{enumerate}
+It is important to note that the {\bf column names} have to be exactly {\tt src\_id}, {\tt index} and {\tt value}.
+{\small\begin{verbatim}
+    sparse-feature-user.txt      dense-feature-user.txt
+    SPARSE FORMAT           <=>  DENSE FORMAT
+    src_id  index   value        src_id   feature_1  feature_2  feature_3
+        15      2  -0.978            15           0     -0.978      0.031
+        15      3   0.031
+\end{verbatim}}
+
+\parahead{Observation Features}
+The features vectors of training and test observations ($\bm{x}_{ijk}$) are in\\
+\indent{\tt {\it type}-feature-obs-train.txt}, \\
+\indent{\tt {\it type}-feature-obs-test.txt}, \\
+where {\it type} = "dense" for the dense format and {\it type} = "sparse" for the sparse format.
+
+For the dense format, take {\tt dense-feature-obs-train.txt} for example.  The $n$th line specifies the feature vector of observation on the $n$th line of {\tt obs-train.txt}.  Since there is a line-by-line correspondence, there is no need to have an ID column.  Each column in this file represents a feature and the column names can be arbitrary.
+
+For the sparse format, take {\tt sparse-feature-obs-train.txt} for example.  It has three columns:
+\begin{enumerate}
+\item {\tt obs\_id}: Line number in {\tt obs-train.txt} (starting from 1, not 0)
+\item {\tt index}: Feature index (starting from 1, not 0)
+\item {\tt value}: Feature value
+\end{enumerate}
+It is important to note that the {\bf column names} have to be exactly {\tt src\_id}, {\tt index} and {\tt value}.
+{\small\begin{verbatim}
+  obs_id  index  value   # MEANING
+       9      1   0.14   # 1st feature of line  9 in obs-train.txt = 0.14
+       9      2  -0.93   # 2nd feature of line  9 in obs-train.txt =-0.93
+      10      1  -0.91   # 1st feature of line 10 in obs-train.txt =-0.91
+\end{verbatim}}
+
+\subsection{Model Fitting}
+
+See Example 1 in {\tt src/R/examples/tutorial-BST.R} for the R script.  For succinctness, we ignore some R commands in the following description.
+
+\parahead{Step 1} 
+Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names.
+{\small\begin{verbatim}
+input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+            sep="\t", header=FALSE, as.is=TRUE);
+names(obs.train) = c("src_id", "dst_id", "src_context", 
+                     "dst_context", "ctx_id", "y");
+x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
+              sep=""), sep="\t", header=FALSE, as.is=TRUE);
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+           sep="\t", header=FALSE, as.is=TRUE);
+names(obs.test) = c("src_id", "dst_id", "src_context", 
+                    "dst_context", "ctx_id", "y");
+x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
+             sep=""), sep="\t", header=FALSE, as.is=TRUE);
+x_src = read.table(paste(input.dir,"/dense-feature-user.txt",sep=""),
+        sep="\t", header=FALSE, as.is=TRUE);
+names(x_src)[1] = "src_id";
+x_dst = read.table(paste(input.dir,"/dense-feature-item.txt",sep=""),
+        sep="\t", header=FALSE, as.is=TRUE);
+names(x_dst)[1] = "dst_id";
+x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
+        sep="\t", header=FALSE, as.is=TRUE);
+names(x_ctx)[1] = "ctx_id";
+\end{verbatim}}
+
+\parahead{Step 2} Index the training and test data.  Functions {\tt indexData} and {\tt indexTestData} (defined in {\tt rc/R/model/multicontext\_model\_utils.R}) convert the input data tables into the right data structure.  In particular, they replace the original IDs ({\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id}) by consecutive index numbers, and convert feature tables (data frames) into feature matrices.
+{\small\begin{verbatim}
+data.train = indexData(
+    obs=obs.train, src.dst.same=FALSE, rm.self.link=FALSE,
+    x_obs=x_obs.train, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+    add.intercept=TRUE
+);
+data.test = indexTestData(
+    data.train=data.train, obs=obs.test,
+    x_obs=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx
+);
+\end{verbatim}}
+\noindent We then describe some input parameters to function {\tt indexData}.
+\begin{itemize}
+\item {\tt src.dst.same}: Whether source nodes and destination nodes refer to the same set of entities.  For example, if source nodes represent users and destination nodes represents items, {\tt src.dst.same} should be set to {\tt FALSE}.  However, if both source and destination nodes represent users (e.g., users rate other users) and ${\tt src\_id} = A$ refers to the same user $A$ as ${\tt dst\_id} = A$, the {\tt src.dst.same} should be set to {\tt TRUE}.
+\item {\tt rm.self.link}: Whether to remove self-edges.  If {\tt src.dst.same=TRUE}, you can choose to remove observations with ${\tt src\_id} = {\tt dst\_id}$ by setting {\tt rm.self.link=FALSE}.  Otherwise, {\tt rm.self.link} should be set to {\tt FALSE}
+\item {\tt add.intercept}: Whether you want to add an intercept to each feature matrix.  If {\tt add.intercept=TRUE}, a column of all 1s will be added to every feature matrix.
+\end{itemize}
+Because {\tt data.train} is passed into {\tt indexTestData}, the above parameters do not need to be passed into {\tt indexTestData} and the parameter setting used to create the test data will be the same as the setting used to create the training data.
+
+The output of {\tt indexData} and {\tt indexTestData} primarily consists of the following three components:
+\begin{itemize}
+\item {\tt obs}: This is the observation table (data frame) with the new numeric index IDs.  The columns are: {\tt src.id}, {\tt dst.id}, {\tt src.context}, {\tt dst.context}, {\tt edge.context} and {\tt y}, where {\tt src.id} corresponds to {\tt src\_id}, etc., and {\tt edge.context} corresponds to {\tt ctx\_id}.
+\item {\tt IDs}: This list of vectors contains the mapping from new numeric index IDs to the original IDs.
+\item {\tt feature:} This is a list of four feature matrices.  {\tt x\_obs}, {\tt x\_src}, {\tt x\_dst} and {\tt x\_ctx} correspond to $\bm{x}_{ijk}$, $\bm{x}_{i}$, $\bm{x}_{j}$ and $\bm{x}_{k}$, respectively.
+\end{itemize}
+For example, assume the $m$th row of {\tt data.train\$obs} is
+{\small\begin{verbatim}
+src.id  dst.id  src.context  dst.context  edge.context  y
+     i       j            p            q             k  
+\end{verbatim}}
+
 
 \bibliographystyle{abbrv}
 \bibliography{references}
