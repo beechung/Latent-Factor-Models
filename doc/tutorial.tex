@@ -54,12 +54,42 @@ y_{ijkpq} \sim \textit{Bernoulli}((1 + \exp(-\mu_{ijkpq}))^{-1}),
 \end{equation*}
 where $\mu_{ijkpq} = \bm{x}'_{ijk} \bm{b} + \alpha_{ip} + \beta_{jq} + \gamma_{k} + \left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$.  Note that $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right> = \sum_{\ell} \bm{u}_i[\ell]\, \bm{v}_j[\ell]\, \bm{w}_k[\ell]$ is a form of the tensor product of three vectors $\bm{u}_i$, $\bm{v}_j$ and $\bm{w}_k$, where $\bm{u}_i[\ell]$ denotes the $\ell$th element in vector $\bm{u}_i$.
 For ease of exposition, we use the following notation to represent both the Gaussian and logistic models.
-$$
-y_{ijkpq} \sim \bm{x}'_{ijk} \bm{b} + \alpha_{ip} + \beta_{jq} + \gamma_{k} + \left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>,
-$$
+\begin{equation}
+y_{ijkpq} \sim \bm{x}'_{ijk} \bm{b} + \alpha_{ip} + \beta_{jq} + \gamma_{k} + \left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>, \label{eq:uvw-model}
+\end{equation}
 where $\bm{b}$ is the regression coefficient vector on feature vector $\bm{x}_{ijk}$; $\alpha_{ip}$ is the latent factor of source node $i$ in source context $p$; $\beta_{jq}$ is the latent factor of destination node $j$ in destination context $q$; $\gamma_{k}$ is the latent factor of edge context $k$; $\bm{u}_i$, $\bm{v}_j$ and $\bm{w}_k$ are the latent factor vectors of source node $i$, destination node $j$ and edge context $k$, respectively.  Note that these latent factors and regression coefficients will be learned from data.
 
+\parahead{Regression Priors}
+The priors of the latent factors are specified in the following:
+\begin{align}
+\alpha_{ip} & \sim \mathcal{N}(\bm{g}_{p}^\prime \bm{x}_{i} + q_{p} \alpha_i, ~\sigma_{\alpha,p}^2),
+	~~~~ \alpha_i \sim \mathcal{N}(0, 1) \label{eq:alpha} \\
+\beta_{jq} & \sim \mathcal{N}(\bm{d}_{q}^\prime \bm{x}_{j} + r_{q} \beta_j, ~\sigma_{\beta,q}^2),
+	~~~~ \beta_j  \sim \mathcal{N}(0, 1) \label{eq:beta} \\
+\bm{u}_{i} & \sim \mathcal{N}(G' \bm{x}_i, \,\sigma_{u}^2 I), ~~~
+\bm{v}_{j} \sim \mathcal{N}(D' \bm{x}_j, \,\sigma_{v}^2 I), ~~~
+\bm{w}_{k} \sim \mathcal{N}(H' \bm{x}_k, \,\sigma_{w}^2 I), \label{eq:uvw}
+\end{align}
+where $\bm{g}_p$, $q_p$, $\bm{d}_q$, $r_q$, $G$, $D$ and $H$ are regression coefficient vectors and matrices.  These regression coefficients will be learned from data and provide the ability to make predictions for users or items that do not appear in training data.  The factors of these new users or items will be predicted based on their features through regression.
 
+\subsection{Toy Dataset}
+
+Before we describe how to fit a model, we first introduce a toy dataset.  You can find this toy dataset in the following directory:
+\begin{verbatim}
+test-data/multicontext_model/simulated-mtx-uvw-10K
+\end{verbatim}
+Please read the README file there to better understand this dataset, which was created by running the following R script.  Please do not rerun this R script.
+\begin{verbatim}
+src/unit-test/multicontext_model/create-simulated-data-1.R
+\end{verbatim}
+This is a simulated dataset; i.e., the response values $y_{ijkpq}$ are generated according to a ground-truth model.  To see the ground-truth, run the following commands in R.
+{\small
+\begin{verbatim}
+> load("test-data/multicontext_model/simulated-mtx-uvw-10K/ground-truth.RData");
+> str(factor);
+> str(param)
+\end{verbatim}
+}
 
 \bibliographystyle{abbrv}
 \bibliography{references}
