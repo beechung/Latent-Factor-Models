@@ -202,7 +202,7 @@ source("src/R/model/multicontext_model_MStep.R");
 source("src/R/model/multicontext_model_EM.R");
 source("src/R/model/GLMNet.R");
 set.seed(2);
-out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K";
+out.dir = "/tmp/tutorial-BST/example-2";
 ans = run.multicontext(
 		obs=data.train$obs,         # Observation table
 		feature=data.train$feature, # Features
@@ -232,7 +232,115 @@ ans = run.multicontext(
 
 
 ###
-### Example 3: Fit the RLFM model with sparse features
+### Example 3: Add more EM iterations to an already fitted model
+###
+###   Example scenario: After running Example 2 with 10 EM iterations,
+###   you feel that the model has not yet converged and want to add
+###   5 more EM iterations to the "uvw2" model specified in the
+###   setting.
+###
+###   To run Example 3, you must first run example 2.
+###
+###   Note: In the following, Step 1 and Step 2 are exactly the same
+###   as those in Example 2.
+###
+library(Matrix);
+dyn.load("lib/c_funcs.so");
+source("src/R/c_funcs.R");
+source("src/R/util.R");
+source("src/R/model/util.R");
+source("src/R/model/multicontext_model_utils.R");
+set.seed(0);
+
+# (1) Read input data
+input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+# (1.1) Training observations and observation features
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+		sep="\t", header=FALSE, as.is=TRUE);
+names(obs.train) = c("src_id", "dst_id", "src_context", 
+		"dst_context", "ctx_id", "y");
+x_obs.train = read.table(paste(input.dir,"/sparse-feature-obs-train.txt",
+				sep=""), sep="\t", header=FALSE, as.is=TRUE);
+names(x_obs.train) = c("obs_id", "index", "value");
+# (1.2) Test observations and observation features
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+		sep="\t", header=FALSE, as.is=TRUE);
+names(obs.test) = c("src_id", "dst_id", "src_context", 
+		"dst_context", "ctx_id", "y");
+x_obs.test = read.table(paste(input.dir,"/sparse-feature-obs-test.txt",
+				sep=""), sep="\t", header=FALSE, as.is=TRUE);
+names(x_obs.test) = c("obs_id", "index", "value");
+# (1.3) User/item/context features
+x_src = read.table(paste(input.dir,"/sparse-feature-user.txt",sep=""),
+		sep="\t", header=FALSE, as.is=TRUE);
+names(x_src) = c("src_id", "index", "value");
+x_dst = read.table(paste(input.dir,"/sparse-feature-item.txt",sep=""),
+		sep="\t", header=FALSE, as.is=TRUE);
+names(x_dst) = c("dst_id", "index", "value");
+x_ctx = read.table(paste(input.dir,"/sparse-feature-ctxt.txt",sep=""),
+		sep="\t", header=FALSE, as.is=TRUE);
+names(x_ctx) = c("ctx_id", "index", "value");
+
+# (2) Index data: Put the input data into the right form
+#     Convert IDs into numeric indices and 
+#     Convert some data frames into matrices
+data.train = indexData(
+		obs=obs.train, src.dst.same=FALSE, rm.self.link=FALSE,
+		x_obs=x_obs.train, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+		add.intercept=TRUE
+);
+data.test = indexTestData(
+		data.train=data.train, obs=obs.test,
+		x_obs=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx
+);
+
+# (3) Load the "uvw2" model from Example 2.
+#     If the follwoing file does not exist, run Example 2.
+load("/tmp/tutorial-BST/example-2_uvw2/model.last");
+model = list(factor=factor, param=param);
+
+# (4) Run 5 additional EM iterations
+dyn.load("lib/c_funcs.so");
+source("src/R/c_funcs.R");
+source("src/R/util.R");
+source("src/R/model/util.R");
+source("src/R/model/multicontext_model_genData.R");
+source("src/R/model/multicontext_model_utils.R");
+source("src/R/model/multicontext_model_MStep.R");
+source("src/R/model/multicontext_model_EM.R");
+source("src/R/model/GLMNet.R");
+out.dir = "/tmp/tutorial-BST/example-3_uvw2";
+set.seed(2);
+ans = fit.multicontext(
+		obs=data.train$obs,         # Observation table
+		feature=data.train$feature, # Features
+		init.model=model, # Initial model = list(factor, param)
+		nSamples=200, # Number of samples drawn in each E-step: could be a vector of size nIter.
+		nBurnIn=20,   # Number of burn-in draws before take samples for the E-step: could be a vector of size nIter.
+		nIter=5,      # Number of EM iterations
+		test.obs=data.test$obs,         # Test data: Observations for testing
+		test.feature=data.test$feature, #            Features for testing
+		IDs=data.test$IDs,
+		is.logistic=FALSE,
+		out.level=1,     # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
+		out.dir=out.dir, # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
+		out.overwrite=TRUE,
+		verbose=1,     # Set to 0 to disable console output; Set to 100 to print everything to the console
+		verbose.M=2,
+		ridge.lambda=1 # Add diag(lambda) to X'X in linear regression
+);
+
+# Check the output
+read.table(paste(out.dir,"/summary",sep=""), header=TRUE, sep="\t", as.is=TRUE);
+
+# Load the model
+load(paste(out.dir,"/model.last",sep=""));
+# It loads param, factor, IDs, prediction
+str(param, max.level=2);
+str(factor);
+
+###
+### Example 4: Fit the RLFM model with sparse features
 ###            glmnet is used to fit prior regression parameters
 ###
 library(Matrix);
@@ -312,7 +420,7 @@ source("src/R/model/multicontext_model_MStep.R");
 source("src/R/model/multicontext_model_EM.R");
 source("src/R/model/GLMNet.R");
 set.seed(2);
-out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K";
+out.dir = "/tmp/tutorial-BST/example-4";
 ans = run.multicontext(
 		obs=data.train$obs,         # Observation table
 		feature=data.train$feature, # Features

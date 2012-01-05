@@ -10,7 +10,7 @@
 \author{Bee-Chung Chen}
 \maketitle
 
-This document describes how you can fit latent factor models using the open source package developed in Yahoo! Labs.
+This paper describes how you can fit latent factor models (e.g., \cite{rlfm:kdd09,bst:kdd11,gmf:recsys11}) using the open source package developed in Yahoo! Labs.
 
 {\small\begin{verbatim}
 Stable repository: https://github.com/yahoo/Latent-Factor-Models
@@ -23,15 +23,18 @@ Before you can use this code to fit any model, you need to install R (with R ver
 
 \subsection{Install R}
 
-To install R, go to {\tt http://www.r-project.org/}.  Click CRAN on the left panel.  Pick a CRAN mirror.  Then, install R from the R source code.
+Before installing R, please make sure that you have C/C++ and Fortran compilers (e.g., {\tt gcc} and {\tt gfortran}) installed on your machine.
+
+To install R, go to {\tt http://www.r-project.org/}.  Click CRAN on the left panel.  Pick a CRAN mirror.  Then, install R from the R source code.  The fact that you are able to build R from source would ensure that you can compile the C/C++ code in this package.
 
 Alternatively, you can install R using linux's package management software.  In this case, please install {\tt r-base}, {\tt r-base-core}, {\tt r-base-dev}, {\tt r-recommended}.
 
-After installing R, install the following R packages: {\tt Matrix} and {\tt glmnet}.  Notice that these two packages are not required if you do not need to handle sparse feature vectors or matrices.  To install these R packages, use the following commands in R.\\
-{\tt
-> install.packages("Matrix");\\
+After installing R, enter R by simply typing {\tt R} and install the following R packages: {\tt Matrix} and {\tt glmnet}.  Notice that these two packages are not required if you do not need to handle sparse feature vectors or matrices.  To install these R packages, use the following commands in R.
+{\small\begin{verbatim}
+> install.packages("Matrix");
 > install.packages("glmnet");
-}
+\end{verbatim}}
+\noindent Make sure that you can run R by simply typing {\tt R}.  Otherwise, please use alias to point {\tt R} to your R executable file.  This is required for {\tt make} to work properly.
 
 \subsection{Be Familiar with R}
 
@@ -44,7 +47,7 @@ This is extremely simple.  Just type {\tt make} in the top-level directory (i.e.
 
 \section{Bias-Smoothed Tensor Model}
 
-The bias-smoothed tensor (BST) model~\cite{bst:kdd11} includes the regression-based latent factor model (RLFM)~\cite{rlfm:kdd09} and regular matrix factorization models as special cases.  In fact, the BST model presented here is a bit more general than the model presented in~\cite{bst:kdd11}.  In the following, I demonstrate how to fit such a model and its special cases.  The R code of this section can be found in {\tt src/R/examples/tutorial-BST.R}.
+The bias-smoothed tensor (BST) model~\cite{bst:kdd11} includes the regression-based latent factor model (RLFM)~\cite{rlfm:kdd09} and regular matrix factorization models as special cases.  In fact, the BST model presented here is more general than the model presented in~\cite{bst:kdd11}.  In the following, I demonstrate how to fit such a model and its special cases.  The R code of this section can be found in {\tt src/R/examples/tutorial-BST.R}.
 
 \subsection{Model}
 
@@ -173,7 +176,9 @@ It is important to note that the {\bf column names} have to be exactly {\tt src\
       10      1  -0.91   # 1st feature of line 10 in obs-train.txt =-0.91
 \end{verbatim}}
 
-\subsection{Model Fitting}
+\input{quick-start}
+
+\subsection{Model Fitting Details}
 \label{sec:fitting}
 
 See Example 1 in {\tt src/R/examples/tutorial-BST.R} for the R script.  For succinctness, we ignore some R commands in the following description.
@@ -382,7 +387,8 @@ pred = predict.multicontext(
 In {\tt src/R/examples/tutorial-BST.R}, we also provide a number of additional examples.
 \begin{itemize}
 \item Example 2: In this example, we demonstrate how to fit the same models as those in Example 1 with sparse features and the glmnet algorithm.
-\item Example 3: In this example, we demonstrate how to fit RLFM models with sparse features and the glmnet algorithm.  Note that RLFM models do not fit this toy dataset well.
+\item Example 3: In this example, we demonstrate how to add more EM iterations to an already fitted model.
+\item Example 4: In this example, we demonstrate how to fit RLFM models with sparse features and the glmnet algorithm.  Note that RLFM models do not fit this toy dataset well.
 \end{itemize}
 
 
