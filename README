@@ -22,7 +22,12 @@ I. Introduction
    [4] Deepak Agarwal, Bee-Chung Chen: Latent OLAP: data cubes over latent 
        variables. SIGMOD Conference 2011.
        
-II. Compilation
+II. Tutorial
+
+   See doc/tutorial.pdf for a tutorial on how to use this package to fit
+   latent factor models.
+
+III. Compilation
 
    You need to have R installed before compiling the code.
    To install R, see: http://www.r-project.org/
@@ -35,7 +40,7 @@ II. Compilation
    
    To compile the C/C++ code, just type make.
 
-III. Examples
+IV. Examples
 
    See: src/R/examples/multicontext_model.R
         src/multi-app/R/example/fitting.R
