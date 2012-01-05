@@ -6,9 +6,16 @@
 \newcommand{\parahead}[1]{\vspace{0.15in}\noindent{\bf #1:}}
 
 \begin{document}
-\title{How to Run the Latent Factor Model Code}
+\title{Tutorial on How to Fit Latent Factor Models}
 \author{Bee-Chung Chen}
 \maketitle
+
+This document describes how you can fit latent factor models using the open source package developed in Yahoo! Labs.
+
+{\small\begin{verbatim}
+Stable repository: https://github.com/yahoo/Latent-Factor-Models
+Development repository: https://github.com/beechung/Latent-Factor-Models
+\end{verbatim}}
 
 \section{Preparation}
 
@@ -25,6 +32,11 @@ After installing R, install the following R packages: {\tt Matrix} and {\tt glmn
 > install.packages("Matrix");\\
 > install.packages("glmnet");
 }
+
+\subsection{Be Familiar with R}
+
+This tutorial assumes that you are familiar with R, at least comfortable reading R code.  If not, please read \\
+{\tt http://cran.r-project.org/doc/manuals/R-intro.pdf}.
 
 \subsection{Compile C/C++ Code}
 
@@ -66,6 +78,7 @@ The priors of the latent factors are specified in the following:
 	~~~~ \alpha_i \sim \mathcal{N}(0, 1) \label{eq:alpha} \\
 \beta_{jq} & \sim \mathcal{N}(\bm{d}_{q}^\prime \bm{x}_{j} + r_{q} \beta_j, ~\sigma_{\beta,q}^2),
 	~~~~ \beta_j  \sim \mathcal{N}(0, 1) \label{eq:beta} \\
+\gamma_{k} & \sim \mathcal{N}(\bm{h}' \bm{x}_k, \,\sigma_{\gamma}^2 I), \\
 \bm{u}_{i} & \sim \mathcal{N}(G' \bm{x}_i, \,\sigma_{u}^2 I), ~~~
 \bm{v}_{j} \sim \mathcal{N}(D' \bm{x}_j, \,\sigma_{v}^2 I), ~~~
 \bm{w}_{k} \sim \mathcal{N}(H' \bm{x}_k, \,\sigma_{w}^2 I), \label{eq:uvw}
@@ -161,6 +174,7 @@ It is important to note that the {\bf column names} have to be exactly {\tt src\
 \end{verbatim}}
 
 \subsection{Model Fitting}
+\label{sec:fitting}
 
 See Example 1 in {\tt src/R/examples/tutorial-BST.R} for the R script.  For succinctness, we ignore some R commands in the following description.
 
@@ -240,12 +254,137 @@ setting = data.frame(
     is.logistic   = c( FALSE,  FALSE)
 );
 \end{verbatim}}
-In the above example, we specify two models to be fitted.
+\noindent In the above example, we specify two models to be fitted.
 \begin{itemize}
 \item {\tt name} specifies the name of the model, which should be unique.
 \item {\tt nFactors} specifies the number of interaction factors per node; i.e., the number of dimensions of $\bm{v}_j$, which is the same as the numbers of dimensions of $\bm{u}_i$ and $\bm{w}_k$.  If you want to disable or remove $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ from the model specified in Eq~\ref{eq:uvw-model}, set {\tt nFactors = 0}.
-\item {\tt has.u} specifies whether to use $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ the model specified in Eq~\ref{eq:uvw-model} or replace this term by $\left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>$.  Notice that the latter does not have factor vector $\bm{u}_i$; thus, it corresponds to {\tt has.u=FALSE}.
+\item {\tt has.u} specifies whether to use $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ in the model specified in Eq~\ref{eq:uvw-model} or replace this term by $\left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>$ (more examples will be given later).  Notice that the latter does not have factor vector $\bm{u}_i$; thus, it corresponds to {\tt has.u=FALSE}.  It is important to note that if {\tt has.u=FALSE}, you must set {\tt src.dst.same=TRUE} when calling {\tt indexData} in Step 2.
+\item {\tt has.gamma} specifies whether to include $\gamma_k$ in the model specified in Eq~\ref{eq:uvw-model} or not.  If {\tt has.gamm=FALSE}, $\gamma_k$ will be disabled or removed from the model.
+\item {\tt nLocalFactors} should be set to 0 for most cases.  Do not set it to other numbers unless you know what you are doing.
+\item {\tt is.logistic} specifies whether to use the logistic response model or not. If {\tt is.logistic=FALSE}, the Gaussian response model will be used.
 \end{itemize}
+In the following, we demonstrate a few different example settings and their corresponding models.
+\begin{itemize}
+\item The original BST model defined in~\cite{bst:kdd11}: Set {\tt has.u=FALSE}, {\tt has.gamma=FALSE}, and set all the context columns to be the same in the input data; i.e., before Step 2, set the input observation tables {\tt obs.train} and {\tt obs.test} so that the following holds.
+{\small\begin{verbatim}
+    obs.train$src_context = obs.train$dst_context = obs.train$ctx_id
+    obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id
+\end{verbatim}}
+This setting gives the following model:
+$$
+y_{ijk} \sim \bm{x}'_{ijk} \bm{b} + \alpha_{ik} + \beta_{jk} + \left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>
+$$
+Notice that since all the context columns are the same, there is no need for using a three dimensional context vector $(k,p,q)$; instead, it is sufficient to just use $k$ to index the context in the above equation.  Also note that you must set {\tt src.dst.same=TRUE} when calling {\tt indexData} in Step 2.
+\item The RLFM model defined in~\cite{rlfm:kdd09}: Set {\tt has.u=TRUE}, {\tt has.gamma=FALSE}, and before Step 2, set:
+{\small\begin{verbatim}
+obs.train$src_context = obs.train$dst_context = obs.train$ctx_id = NULL;
+obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id  = NULL;
+x_ctx = NULL;
+\end{verbatim}}
+This setting gives the following model:
+$$
+y_{ij} \sim \bm{x}'_{ij} \bm{b} + \alpha_{i} + \beta_{j} + \bm{u}'_i \bm{v}_j
+$$
+Notice that setting the context-related objects to {\tt NULL} disables the context-specific factors in the model.
+\end{itemize}
+
+\parahead{Step 4}
+Run the model fitting procedure.
+{\small\begin{verbatim}
+out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K";
+ans = run.multicontext(
+    obs=data.train$obs,         # training observation table
+    feature=data.train$feature, # training feature matrices
+    setting=setting, # setting specified in Step 3
+    nSamples=200,    # number of Gibbs samples in each E-step
+    nBurnIn=20,      # number of burn-in samples for the Gibbs sampler
+    nIter=10,        # number of EM iterations
+    test.obs=data.test$obs,         # test observation table (optional)
+    test.feature=data.test$feature, # test feature matrices  (optional)
+    reg.algo=NULL,    # regression algorithm; see below
+    reg.control=NULL, # control parameters for the regression algorithm
+    IDs=data.test$IDs,  # ID mappings (optional)
+    out.level=1,        # see below
+    out.dir=out.dir,    # output directory
+    out.overwrite=TRUE, # whether to overwrite the output directory
+    # initialization parameters (the default setting usually works)
+    var_alpha=1, var_beta=1, var_gamma=1, 
+    var_v=1, var_u=1, var_w=1, var_y=NULL,
+    relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
+    # others
+    verbose=1,      # overall verbose level: larger -> more messages
+    verbose.M=2,    # verbose level of the M-step
+    rnd.seed.init=0, rnd.seed.fit=1 # random seeds
+);
+\end{verbatim}}
+\noindent Most input parameters to {\tt run.multicontext} are described in the above code piece. We make the following additional notes:
+\begin{itemize}
+\item {\tt nSamples}, {\tt nBurnIn} and {\tt nIter} determine how long the procedure will run.  In the above example, the procedure runs 10 EM iterations.  In each iteration, it draws 220 Gibbs samples, where the first 20 samples are burn-in samples (which are thrown away) and the rest 200 samples are used to compute the Monte Carlo means in the E-step of this iteration.  In our experience, 10-20 EM iterations with 100-200 samples per iteration are usually sufficient.
+\item {\tt reg.algo} and {\tt reg.control} specify how the regression priors will to be fitted.  If they are set to {\tt NULL}, R's basic linear regression function {\tt lm} will be used to fit the prior regression coefficients $\bm{g}, \bm{d}, \bm{h}, G, D$ and $H$.  Currently, we only support two other algorithms {\tt GLMNet} and {\tt RandomForest}.  Notice that if {\tt RandomForest} is used, the regression priors become nonlinear; see~\cite{gmf:recsys11} for more information.
+\item {\tt out.level} and {\tt out.dir} specify what and where the fitting procedure will output.  If {\tt out.level} > 0, each model specified in {\tt setting} (i.e., each row in the {\tt setting} table) will be output to a separate directory.  The output directory name of the $m$th model is
+{\small\begin{verbatim}
+paste(out.dir, "_", setting$name[m], sep="")
+\end{verbatim}}
+In this example, the output directories of the two models specified in the {\tt setting} table are:
+{\small\begin{verbatim}
+/tmp/unit-test/simulated-mtx-uvw-10K_uvw1
+/tmp/unit-test/simulated-mtx-uvw-10K_uvw2
+\end{verbatim}}
+If {\tt out.level=1}, the fitted models are stored in files {\tt model.last} and {\tt model.minTestLoss} in the output directories, where {\tt model.last} contains the model obtained at the end of the last EM iteration and {\tt model.minTestLoss} contains the model at the end of the EM iteration that gives the minimum loss on the test observation.  {\tt model.minTestLoss} exists only when {\tt test.obs} is not {\tt NULL}.  If the fitting procedure stops (e.g., the machine reboots) before it finishes all the EM iteration, the latest fitted models will still be saved in these two files.  If {\tt out.level=2}, the model at the end of the $m$th EM iteration will be saved in {\tt model.$m$} for each $m$.  We describe how to read the output in Section~\ref{sec:model-output}.
+\end{itemize}
+
+\subsection{Output}
+\label{sec:model-output}
+
+The two main output files in an output directory are {\tt summary} and {\tt model.last}.
+
+\parahead{Summary File}
+It records a number of statistics for each EM iteration.  To read a summary file, use the following R command.
+{\small\begin{verbatim}
+read.table(paste(out.dir,"_uvw2/summary",sep=""), header=TRUE);
+\end{verbatim}}
+\noindent Explanation of the columns are in the following:
+\begin{itemize}
+\item {\tt Iter} specifies the iteration number.
+\item {\tt nSteps} records the number of Gibbs samples drawn in the E-step of that iteration.
+\item {\tt CDlogL}, {\tt TestLoss}, {\tt LossInTrain} and {\tt TestRMSE} record the complete data log likelihood, loss on the test data, loss on the training data and RMSE (root mean squared error) on the test data for the model at the end of that iteration.  For the Gaussian response model, the loss is defined as RMSE.  For the logistic response model, the loss is defined as negative average log likelihood per observation.
+\item {\tt TimeEStep}, {\tt TimeMStep} and {\tt TimeTest} record the numbers of seconds used to compute the E-step, M-step and predictions on test data in that iteration.
+\end{itemize}
+
+\parahead{Sanity Check}
+\begin{itemize}
+\item Check {\tt CDlogL} to see whether it increases sharply during the first few iterations and then oscillates at the end.
+\item Check {\tt TestLoss} to see whether it converges.  If not, more EM iterations are needed.
+\item Check {\tt TestLoss} and {\tt LossInTrain} to see whether the model overfits the data; i.e., TestLoss goes up, while LossInTrain goes down.  If so, try to simplify the model by reducing the number of factors and parameters.
+\end{itemize}
+You can monitor the summary file when the code is running.  When you see {\tt TestLoss} converges, kill the running process.
+
+\parahead{Model File}
+The fitted models are saved in {\tt model.last} and {\tt model.minTestLoss}, which are R data binary files.  To load the models, run the following command.
+{\small\begin{verbatim}
+load(paste(out.dir,"_uvw2/model.last",sep=""));
+\end{verbatim}}
+\noindent After loading, the fitted prior parameters are in object {\tt param} and the fitted latent factors are in object {\tt factor}.  Also, the object {\tt IDs} contains the ID mappings described in Step~2 of Section~\ref{sec:fitting}.
+
+\subsection{Prediction}
+
+To make predictions, use the following function.
+{\small\begin{verbatim}
+pred = predict.multicontext(
+    model=list(factor=factor, param=param), 
+    obs=data.test$obs, feature=data.test$feature, is.logistic=FALSE
+);
+\end{verbatim}}
+\noindent Now, {\tt pred\$pred.y} contains the predicted response for {\tt data.test\$obs}.  Notice that the test data {\tt data.test} was created by call {\tt indexTestData} in Step 2 of Section~\ref{sec:fitting}.
+
+\subsection{Other Examples}
+
+In {\tt src/R/examples/tutorial-BST.R}, we also provide a number of additional examples.
+\begin{itemize}
+\item Example 2: In this example, we demonstrate how to fit the same models as those in Example 1 with sparse features and the glmnet algorithm.
+\item Example 3: In this example, we demonstrate how to fit RLFM models with sparse features and the glmnet algorithm.  Note that RLFM models do not fit this toy dataset well.
+\end{itemize}
+
 
 \bibliographystyle{abbrv}
 \bibliography{references}
