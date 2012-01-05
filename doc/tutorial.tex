@@ -217,12 +217,35 @@ The output of {\tt indexData} and {\tt indexTestData} primarily consists of the 
 \item {\tt IDs}: This list of vectors contains the mapping from new numeric index IDs to the original IDs.
 \item {\tt feature:} This is a list of four feature matrices.  {\tt x\_obs}, {\tt x\_src}, {\tt x\_dst} and {\tt x\_ctx} correspond to $\bm{x}_{ijk}$, $\bm{x}_{i}$, $\bm{x}_{j}$ and $\bm{x}_{k}$, respectively.
 \end{itemize}
-For example, assume the $m$th row of {\tt data.train\$obs} is
-{\small\begin{verbatim}
-src.id  dst.id  src.context  dst.context  edge.context  y
-     i       j            p            q             k  
-\end{verbatim}}
+For example, assume the $m$th row of {\tt data.train\$obs} is \\
+{\small\begin{center}\begin{tabular}{r r r r r r}
+src.id & dst.id & src.context & dst.context & edge.context & y \\
+   $i$ &    $j$ &         $p$ &         $q$ &          $k$ & $y_{ijkpq}$ \\
+\end{tabular}\end{center}}
+\noindent Then, we have the following correspondence:
+\begin{itemize}
+\item {\tt data.train\$IDs\$SrcIDs[$i$]} is the original source node ID of this observation.  Similarly, {\tt DstIDs[$j$]}, {\tt SrcContexts[$p$]}, {\tt DstContexts[$q$]} and {\tt CtxIDs[$k$]} are the original IDs of the destination node, source context, destination context, edge context of this observation.
+\item {\tt data.train\$feature\$x\_obs[$m$,]} is the observation feature vector of this observation.  Similarly, {\tt x\_src[$i$,]}, {\tt x\_dst[$j$,]} and {\tt x\_ctx[$k$,]} are the feature vectors of the source node, destination node and edge context of this observation.
+\end{itemize}
 
+\parahead{Step 3}
+Fit the model(s).  We first specify the settings of the models to be fitted.
+{\small\begin{verbatim}
+setting = data.frame(
+    name          = c("uvw1", "uvw2"),
+    nFactors      = c(     1,      2),
+    has.u         = c(  TRUE,   TRUE),
+    has.gamma     = c( FALSE,  FALSE),
+    nLocalFactors = c(     0,      0),
+    is.logistic   = c( FALSE,  FALSE)
+);
+\end{verbatim}}
+In the above example, we specify two models to be fitted.
+\begin{itemize}
+\item {\tt name} specifies the name of the model, which should be unique.
+\item {\tt nFactors} specifies the number of interaction factors per node; i.e., the number of dimensions of $\bm{v}_j$, which is the same as the numbers of dimensions of $\bm{u}_i$ and $\bm{w}_k$.  If you want to disable or remove $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ from the model specified in Eq~\ref{eq:uvw-model}, set {\tt nFactors = 0}.
+\item {\tt has.u} specifies whether to use $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ the model specified in Eq~\ref{eq:uvw-model} or replace this term by $\left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>$.  Notice that the latter does not have factor vector $\bm{u}_i$; thus, it corresponds to {\tt has.u=FALSE}.
+\end{itemize}
 
 \bibliographystyle{abbrv}
 \bibliography{references}
