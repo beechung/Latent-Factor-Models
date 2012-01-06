@@ -2,7 +2,74 @@
 \subsection{Quick Start}
 \label{sec:bst-quick-start}
 
-In this section, we describe how to fit latent factor models using this package without much need for familiarity of R.
-\begin{center}
-(To be completed)
-\end{center}
+In this section, we describe how to fit BST models using this package without much need for familiarity of R or deep understanding of the code. Before you run the sample code, please make sure you are in the top-level directory of the installed code, i.e. by using Linux command {\tt ls}, you should be able to see files "LICENSE" and "README".
+
+\parahead{Step 1}
+Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names. Assuming we use the dense format of the feature files, a sample code can be
+{\small\begin{verbatim}
+input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+            sep="\t", header=FALSE, as.is=TRUE);
+names(obs.train) = c("src_id", "dst_id", "src_context", 
+                     "dst_context", "ctx_id", "y");
+x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
+              sep=""), sep="\t", header=FALSE, as.is=TRUE);
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+           sep="\t", header=FALSE, as.is=TRUE);
+names(obs.test) = c("src_id", "dst_id", "src_context", 
+                    "dst_context", "ctx_id", "y");
+x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
+             sep=""), sep="\t", header=FALSE, as.is=TRUE);
+x_src = read.table(paste(input.dir,"/dense-feature-user.txt",sep=""),
+        sep="\t", header=FALSE, as.is=TRUE);
+names(x_src)[1] = "src_id";
+x_dst = read.table(paste(input.dir,"/dense-feature-item.txt",sep=""),
+        sep="\t", header=FALSE, as.is=TRUE);
+names(x_dst)[1] = "dst_id";
+x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
+        sep="\t", header=FALSE, as.is=TRUE);
+names(x_ctx)[1] = "ctx_id";
+\end{verbatim}}
+
+\parahead{Step 2}
+We start fitting the model by loading the function {\tt fit.bst} in {\tt src/R/BST.R}. 
+{\small\begin{verbatim}
+>source("src/R/BST.R");
+\end{verbatim}}
+Then we run a simple latent factor model using the following command
+{\small\begin{verbatim}
+>ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x.obs.train=x.obs.train, 
+	x.obs.test=x.obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+	out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
+	model.name="uvw", nFactors=3, nIter=10);
+\end{verbatim}}
+Basically we put all the loaded data sets as input of the function, specify the output directory prefix as {\tt /tmp/unit-test/simulated-mtx-uvw-10K}, and run model {\tt uvw}. Note that the model name is quite arbitrary, and the final output directory for model {\tt uvw} is {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw}. For model {\tt uvw}, we use 3 factors and run 10 EM iterations. 
+
+\parahead{Step 3}
+Once Step 2 is finished, we have the predicted values of the response variable $y$, since we have the test data as input of the function (If we do not have test data, we can simply omit the {\tt obs.test} and {\tt x.obs.test} option, and the final output would only have model parameters without prediction results).  Check out the file {\tt prediction} inside the output directory (In our example, {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw/prediction} is the filename). The file has two columns: the original observed $y$ and the predicted $y$ (the {\tt pred\_y} column). Standard metrics such as complete data log-likelihood and RMSE (root mean squared error) have been generated in the file {\tt summary}. Check Section \ref{sec:output} for more details.
+
+\parahead{Run multiple models simultaneously}
+We actually are able to run multiple BST models simultaneously using the following command
+{\small\begin{verbatim}
+>ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x.obs.train=x.obs.train, 
+	x.obs.test=x.obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+	out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
+	model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
+\end{verbatim}}
+Here we are able to run two models: {\tt uvw1} and {\tt uvw2} simultaneously by setting the {\tt model.name} and {\tt nFactors} as  2-dimensional vectors, i.e. model {\tt uvw1} uses 1 factor, and model {\tt uvw2} uses 2 factors. They both do 10 EM iterations and unfortunately for fair comparison between sibling models we do not allow running environment parameters such as {\tt nIter} to be different among different models. Plus, we do have the model parameters for each EM iteration saved in the output directory of each model. Please check out each model's output directory for model summary and prediction files.
+
+\parahead{Basic parameters} The meaning of basic parameters of function {\tt fit.bst} are listed as follows:
+\begin{itemize}
+\item {\tt code.dir} is the top-level directory of where code get installed. If you are already in the directory, the default which is the empty string can be used.
+\item {\tt obs.train}, {\tt obs.test}, {\tt x.obs.train}, 
+	{\tt x.obs.test}, {\tt x\_src}, {\tt x\_dst}, {\tt x\_ctx} are the data. Please check Section \ref{sec:data} for more details. Note that only {\tt obs.train} is required to run this code; everything else is optional depends on the problem you have.
+\item {\tt out.dir} is the output directory prefix. The final output directory is {\tt out.dir\_model.name}. 
+\item {\tt model.name} is the names of models to run. It can be any arbitrary string or a vector of strings. Default is {\tt "model"}.
+\item {\tt nFactors} specifies the number of factors for each model. It can be either a scalar value or a vector of numbers with length equal to the number of models.
+\item {\tt nIter} specifies the number of EM iterations. All the models share the same number of iterations.
+\item {\tt nSamplesPerIter} specifies the number of Gibbs samples per E-step. It can be either a scalar which means every EM iteration share the same {\tt nSamplesPerIter}, or it can be a vector with length equal to {\tt nIter}, i.e. each EM iteration has their own values of {\tt nSamplesPerIter}. Note that all models share the same {\tt nSamplesPerIter}.
+\item {\tt is.logistic} specifies whether we want to use logistic link function for our models on binary response data. Default is FALSE. It can be either a boolean value that is shared by all models, or a vector of boolean values with length equal to the number of models.
+\item {\tt src.dst.same} specifies whether the source and destination nodes are actually the same. If they are, $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ in the model specified in Eq~\ref{eq:uvw-model} will be replaced by $\left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>$. Default is FALSE.
+\item {\tt control} has a list of more advanced parameters that will be introduced later.
+\end{itemize}
+
