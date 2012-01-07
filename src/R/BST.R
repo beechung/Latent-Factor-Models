@@ -6,13 +6,13 @@ fit.bst <- function(
 	code.dir = "", # The top-level directory of where code get installed, "" if you are in that directory
 	obs.train, # The training response data
 	obs.test = NULL, # The testing response data
-	x.obs.train = NULL, # The data of training observation features
-	x.obs.test = NULL, # The data of testing observation features
+	x_obs.train = NULL, # The data of training observation features
+	x_obs.test = NULL, # The data of testing observation features
 	x_src = NULL, # The data of context features for source nodes
 	x_dst = NULL, # The data of context features for destination nodes
 	x_ctx = NULL, # The data of context features for edges
 	out.dir = "", # The directory of output files
-	model.name = "model", #The name of the model, can be any string or vector of strings
+	model.name = "model", #The name of the model, can be any string or a vector of strings
 	nFactors, # Number of factors, can be any positive integer or vector of positive intergers with length=length(model.name)
 	nIter = 20, # Number of EM iterations
 	nSamplesPerIter = 200, # Number of Gibbs samples per E step, can be a vector of numbers with length=nIter
@@ -25,6 +25,9 @@ fit.bst <- function(
   if (code.dir!="") code.dir = sprintf("%s/",code.dir);
   #if (out.dir!="") out.dir = sprintf("%s/",out.dir);
   
+  if (floor(nIter)!=nIter || nIter<=0 || length(nIter)>1) stop("nIter must be a positive integer scalar!");
+  if (floor(nSamplesPerIter)!=nSamplesPerIter || nSamplesPerIter<=0 || length(nSamplesPerIter)>1) stop("nSamplesPerIter must be a positive integer scalar!");
+
   # Load all the required libraries and source code  
   if (class(try(load.code(code.dir)))=="try-error") stop("Wrong code.dir. Please double check where the code is installed."); 
   
@@ -33,9 +36,9 @@ fit.bst <- function(
   if (!is.null(obs.test)) {
     if (is.null(obs.test$src_id) || is.null(obs.test$dst_id) || is.null(obs.test$y)) stop("obs.test must have src_id, dst_id, and response y");
   }
-  names(x_src)[1] = "src_id";
-  names(x_dst)[1] = "dst_id";
-  names(x_ctx)[1] = "ctx_id";
+  if (is.null(x_obs.train) && !is.null(x_obs.test)) stop("x_obs.train does not exist while x_obs.test is used!");
+  if (is.null(x_obs.test) && !is.null(x_obs.train)) stop("x_obs.test does not exist while x_obs.train is used!");
+  if (ncol(x_obs.train)!=ncol(x_obs.test)) stop("ncol(x_obs.train)!=ncol(x_obs.test)! The number of features for training and test should be exactly the same!");
 
   # Index data: Put the input data into the right form
   # Convert IDs into numeric indices and
@@ -61,7 +64,7 @@ fit.bst <- function(
   # Model Settings
   if (is.null(control$has.gamma)) {
      control$has.gamma = FALSE;
-     if (is.null(obs.train$src_context) && is.null(obs.train$dst_context) && !is.null(obs.train$ctx_id)) control$has.gamma = TRUE;
+     if (is.null(x_src) && is.null(x_dst) && !is.null(x_ctx)) control$has.gamma = TRUE;
   }
   if (length(nFactors)==1) nFactors = rep(nFactors, length(model.name));
   if (length(control$has.gamma)==1) control$has.gamma = rep(control$has.gamma,length(model.name));
@@ -72,13 +75,15 @@ fit.bst <- function(
   for (i in 1:length(is.logistic))
   {
         if (is.logistic[i]!=0 && is.logistic[i]!=1) stop("is.logistic must be boolean!");
+	if (is.logistic[i] && length(which(obs.train$y!=0 & obs.train$y!=1))>0) stop("Logistic link function should not be used for non-binary training data! Please set is.logistic=F");
+	if (is.logistic[i] && length(which(obs.test$y!=0 & obs.test$y!=1))>0) stop("Logistic link function should not be used for non-binary test data! Please set is.logistic=F");
   }
 
   setting = data.frame(
                 name          = model.name,
                 nFactors      = nFactors, # number of interaction factors
                 has.u         = rep(!src.dst.same,length(model.name)), # whether to use u_i' v_j or v_i' v_j
-                has.gamma     = control$has.gamma, # just set to F
+                has.gamma     = control$has.gamma, 
                 nLocalFactors = rep(0,length(model.name)), # just set to 0
                 is.logistic   = is.logistic  # whether to use the logistic model for binary rating
   );
@@ -156,8 +161,6 @@ load.code <- function(code.dir)
   source(sprintf("%ssrc/R/model/multicontext_model_utils.R",code.dir));
   source(sprintf("%ssrc/R/model/multicontext_model_MStep.R",code.dir));
   source(sprintf("%ssrc/R/model/multicontext_model_EM.R",code.dir));
-  #source(sprintf("%ssrc/R/model/GLMNet.R",code.dir));
-  #source(sprintf("%ssrc/R/model/RandomForest.R",code.dir));
 }
 
 fit.bst.control <- function (
@@ -187,7 +190,7 @@ fit.bst.control <- function (
      if (reg.algo!="GLMNet" && reg.algo!="RandomForest") stop("reg.algo must be NULL, GLMNet, or RandomForest. Make sure they are strings.");
   }
   if (!is.null(nBurnin)) {
-     if (nBurnin<0 || !is.integer(nBurnin)) stop("nBurnin must be a positive integer");
+     if (nBurnin<0 || floor(nBurnin)!=nBurnin || length(nBurnin)>1) stop("nBurnin must be a positive integer");
   }
   list(rm.self.link=rm.self.link,add.intercept=add.intercept, has.gamma=has.gamma, reg.algo=reg.algo, reg.control=reg.control, nBurnin=nBurnin, init.params=init.params, random.seed=random.seed)
 }

@@ -7,7 +7,7 @@ In this section, we describe how to fit BST models using this package without mu
 \parahead{Step 1}
 Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names. Assuming we use the dense format of the feature files, a sample code can be
 {\small\begin{verbatim}
-input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+>input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
             sep="\t", header=FALSE, as.is=TRUE);
 names(obs.train) = c("src_id", "dst_id", "src_context", 
@@ -38,8 +38,8 @@ We start fitting the model by loading the function {\tt fit.bst} in {\tt src/R/B
 \end{verbatim}}
 Then we run a simple latent factor model using the following command
 {\small\begin{verbatim}
->ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x.obs.train=x.obs.train, 
-	x.obs.test=x.obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+>ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+	x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
 	out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
 	model.name="uvw", nFactors=3, nIter=10);
 \end{verbatim}}
@@ -48,11 +48,12 @@ Basically we put all the loaded data sets as input of the function, specify the 
 \parahead{Step 3}
 Once Step 2 is finished, we have the predicted values of the response variable $y$, since we have the test data as input of the function (If we do not have test data, we can simply omit the {\tt obs.test} and {\tt x.obs.test} option, and the final output would only have model parameters without prediction results).  Check out the file {\tt prediction} inside the output directory (In our example, {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw/prediction} is the filename). The file has two columns: the original observed $y$ and the predicted $y$ (the {\tt pred\_y} column). Standard metrics such as complete data log-likelihood and RMSE (root mean squared error) have been generated in the file {\tt summary}. Check Section \ref{sec:output} for more details.
 
+Please note that the predicted values of $y$ for model {\tt uvw} can also be found at {\tt ans$pred.y$uvw}.
 \parahead{Run multiple models simultaneously}
 We actually are able to run multiple BST models simultaneously using the following command
 {\small\begin{verbatim}
->ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x.obs.train=x.obs.train, 
-	x.obs.test=x.obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+>ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+	x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
 	out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
 	model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
 \end{verbatim}}
@@ -69,7 +70,24 @@ Here we are able to run two models: {\tt uvw1} and {\tt uvw2} simultaneously by 
 \item {\tt nIter} specifies the number of EM iterations. All the models share the same number of iterations.
 \item {\tt nSamplesPerIter} specifies the number of Gibbs samples per E-step. It can be either a scalar which means every EM iteration share the same {\tt nSamplesPerIter}, or it can be a vector with length equal to {\tt nIter}, i.e. each EM iteration has their own values of {\tt nSamplesPerIter}. Note that all models share the same {\tt nSamplesPerIter}.
 \item {\tt is.logistic} specifies whether we want to use logistic link function for our models on binary response data. Default is FALSE. It can be either a boolean value that is shared by all models, or a vector of boolean values with length equal to the number of models.
-\item {\tt src.dst.same} specifies whether the source and destination nodes are actually the same. If they are, $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ in the model specified in Eq~\ref{eq:uvw-model} will be replaced by $\left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>$. Default is FALSE.
+\item {\tt src.dst.same}: Whether source nodes and destination nodes refer to the same set of entities.  For example, if source nodes represent users and destination nodes represents items, {\tt src.dst.same} should be set to {\tt FALSE}.  However, if both source and destination nodes represent users (e.g., users rate other users) and ${\tt src\_id} = A$ refers to the same user $A$ as ${\tt dst\_id} = A$, the {\tt src.dst.same} should be set to {\tt TRUE}. Regarding to modeling, when {\tt src.dst.same} is TRUE, $\left<\bm{u}_i, \bm{v}_j, \bm{w}_k\right>$ in the model specified in Eq~\ref{eq:uvw-model} will be replaced by $\left<\bm{v}_i, \bm{v}_j, \bm{w}_k\right>$. The default of {\tt src.dst.same} is FALSE.
 \item {\tt control} has a list of more advanced parameters that will be introduced later.
 \end{itemize}
 
+\parahead{Advanced parameters} {\tt control=fit.bst.control(...)} contains the following advanced parameters:
+\begin{itemize}
+\item {\tt rm.self.link}: Whether to remove self-edges.  If {\tt src.dst.same=TRUE}, you can choose to remove observations with ${\tt src\_id} = {\tt dst\_id}$ by setting {\tt rm.self.link=FALSE}.  Otherwise, {\tt rm.self.link} should be set to {\tt FALSE}. The default of {\tt rm.self.link} is FALSE.
+\item {\tt add.intercept}: Whether you want to add an intercept to each feature matrix.  If {\tt add.intercept=TRUE}, a column of all 1s will be added to every feature matrix. The default of {\tt add.intercept} is TRUE.
+\item {\tt has.gamma} specifies whether to include $\gamma_k$ in the model specified in Eq~\ref{eq:uvw-model} or not.  If {\tt has.gamm=FALSE}, $\gamma_k$ will be disabled or removed from the model. For the default, {\tt has.gamma} is set as FALSE unless the training response data {\tt obs.train} do not have any source or destination context, but have edge context.
+\item {\tt reg.algo} and {\tt reg.control} specify how the regression priors will to be fitted.  If they are set to {\tt NULL} (default), R's basic linear regression function {\tt lm} will be used to fit the prior regression coefficients $\bm{g}, \bm{d}, \bm{h}, G, D$ and $H$.  Currently, we only support two other algorithms {\tt "GLMNet"} and {\tt "RandomForest"}. Therefore, {\tt reg.algo} can only have three types of values: NULL, {\tt "GLMNet"} and {\tt "RandomForest"} (both are strings). Notice that if {\tt "RandomForest"} is used, the regression priors become nonlinear; see~\cite{gmf:recsys11} for more information.
+\item {\tt nBurnin} is the number of burn-in samples per E-step. The default is 10\% of {\tt nSamplesPerIter}.
+\item {\tt init.params} is a list of the initial values of all the variance component parameters. The default values of {\tt init.params} is
+{\small\begin{verbatim}
+init.params=list(var_alpha=1, var_beta=1, var_gamma=1,
+                var_u=1, var_v=1, var_w=1, var_y=NULL,
+                relative.to.var_y=FALSE, var_alpha_global=1, 
+					 var_beta_global=1)
+\end{verbatim}}
+The details of the meanings of these parameters can be found at Section \ref{}.
+\item {\tt random.seed} is the random seed for the model fitting procedure.
+\end{itemize}
