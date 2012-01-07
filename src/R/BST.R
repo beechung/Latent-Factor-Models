@@ -38,8 +38,9 @@ fit.bst <- function(
   }
   if (is.null(x_obs.train) && !is.null(x_obs.test)) stop("x_obs.train does not exist while x_obs.test is used!");
   if (is.null(x_obs.test) && !is.null(x_obs.train)) stop("x_obs.test does not exist while x_obs.train is used!");
-  if (ncol(x_obs.train)!=ncol(x_obs.test)) stop("ncol(x_obs.train)!=ncol(x_obs.test)! The number of features for training and test should be exactly the same!");
-
+  if (!is.null(x_obs.train) && !is.null(x_obs.test)) {
+    if (ncol(x_obs.train)!=ncol(x_obs.test)) stop("ncol(x_obs.train)!=ncol(x_obs.test)! The number of features for training and test should be exactly the same!");
+  }
   # Index data: Put the input data into the right form
   # Convert IDs into numeric indices and
   # Convert some data frames into matrices
