@@ -298,17 +298,14 @@ Run the model fitting procedure.
 {\small\begin{verbatim}
 out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K";
 ans = run.multicontext(
-    obs=data.train$obs,         # training observation table
-    feature=data.train$feature, # training feature matrices
+    data.train=data.train, # training data
+    data.test=data.test,   # test data (optional)
     setting=setting, # setting specified in Step 3
     nSamples=200,    # number of Gibbs samples in each E-step
     nBurnIn=20,      # number of burn-in samples for the Gibbs sampler
     nIter=10,        # number of EM iterations
-    test.obs=data.test$obs,         # test observation table (optional)
-    test.feature=data.test$feature, # test feature matrices  (optional)
     reg.algo=NULL,    # regression algorithm; see below
     reg.control=NULL, # control parameters for the regression algorithm
-    IDs=data.test$IDs,  # ID mappings (optional)
     out.level=1,        # see below
     out.dir=out.dir,    # output directory
     out.overwrite=TRUE, # whether to overwrite the output directory
@@ -369,7 +366,7 @@ The fitted models are saved in {\tt model.last} and {\tt model.minTestLoss}, whi
 {\small\begin{verbatim}
 load(paste(out.dir,"_uvw2/model.last",sep=""));
 \end{verbatim}}
-\noindent After loading, the fitted prior parameters are in object {\tt param} and the fitted latent factors are in object {\tt factor}.  Also, the object {\tt IDs} contains the ID mappings described in Step~2 of Section~\ref{sec:fitting}.
+\noindent After loading, the fitted prior parameters are in object {\tt param} and the fitted latent factors are in object {\tt factor}.  Also, the object {\tt data.train} contains the ID mappings described in Step~2 of Section~\ref{sec:fitting} that are needed when you need to index a new test dataset.  Notice that {\tt data.train} does not contain actual data, but just meta information.
 
 \subsection{Prediction}
 
@@ -380,7 +377,14 @@ pred = predict.multicontext(
     obs=data.test$obs, feature=data.test$feature, is.logistic=FALSE
 );
 \end{verbatim}}
-\noindent Now, {\tt pred\$pred.y} contains the predicted response for {\tt data.test\$obs}.  Notice that the test data {\tt data.test} was created by call {\tt indexTestData} in Step 2 of Section~\ref{sec:fitting}.
+\noindent Now, {\tt pred\$pred.y} contains the predicted response for {\tt data.test\$obs}.  Notice that the test data {\tt data.test} was created by calling {\tt indexTestData} in Step 2 of Section~\ref{sec:fitting}.  If you have new test data, you can use the following command to index the new test data.
+{\small\begin{verbatim}
+data.test = indexTestData(
+    data.train=data.train, obs=obs.test,
+    x_obs=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx
+);
+\end{verbatim}}
+\noindent where {\tt obs.test}, {\tt x\_obs.test}, {\tt x\_src}, {\tt x\_dst} and {\tt x\_ctx} contain new data in the same format as described in Step 2 of Section~\ref{sec:fitting}.
 
 \subsection{Other Examples}
 

@@ -601,7 +601,7 @@ output.to.dir <- function(
 	out.dir, factor, param, IDs, prediction, loglik, 
 	minTestLoss, nSamples, iter, out.level, out.overwrite, 
 	TimeEStep, TimeMStep, TimeTest, verbose,
-	other=NULL, name="est"
+	other=NULL, name="est", data.train=NULL
 ){
 	if(!is.null(prediction) && is.null(prediction$test.loss)) stop("prediction$test.loss does not exist");
 	if(!is.null(prediction) && is.null(prediction$rmse))      stop("prediction$rmse does not exist");
@@ -621,6 +621,7 @@ output.to.dir <- function(
 	}
 	
 	thisTestLoss = if(is.null(prediction)) -1 else prediction$test.loss;
+	TestRMSE     = if(is.null(prediction)) -1 else prediction$rmse;
 	
 	if(iter == 0){
 		if(out.level >= 2) save(file=paste(out.dir,"/",name,".0",sep=""), list=c("factor", "param"));
@@ -631,7 +632,7 @@ output.to.dir <- function(
 			if(file.exists(file.prev)) file.remove(file.prev);
 			file.rename(file, file.prev);
 		}
-		save(file=file, list=c("factor", "param", "prediction", "IDs", "other"));
+		save(file=file, list=c("factor", "param", "prediction", "IDs", "other", "data.train"));
 		if(!is.null(prediction)){
 			if(thisTestLoss == minTestLoss) file.copy(file, paste(out.dir,"/",name,".minTestLoss",sep=""), overwrite=TRUE);
 		}
@@ -641,7 +642,7 @@ output.to.dir <- function(
 		nSamples = if(iter > 0) nSamples[iter] else 0;
 	}
 	
-	summary = data.frame(Method="MCEM", Iter=iter, nSteps=nSamples, CDlogL=loglik, TestLoss=thisTestLoss, LossInTrain=attr(loglik,"loss"), TestRMSE=prediction$rmse, TimeEStep=TimeEStep, TimeMStep=TimeMStep, TimeTest=TimeTest);
+	summary = data.frame(Method="MCEM", Iter=iter, nSteps=nSamples, CDlogL=loglik, TestLoss=thisTestLoss, LossInTrain=attr(loglik,"loss"), TestRMSE=TestRMSE, TimeEStep=TimeEStep, TimeMStep=TimeMStep, TimeTest=TimeTest);
 	file = paste(out.dir,"/summary",sep="");
 	if(file.exists(file)) write.table(summary, file=file, append=TRUE,  quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
 	else                  write.table(summary, file=file, append=FALSE, quote=FALSE, sep="\t", row.names=FALSE, col.names=TRUE);

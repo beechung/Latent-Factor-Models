@@ -42,6 +42,12 @@
 ###             You can also set feature$x_obs[] = 0 to obtain a zero-mean model.
 ###         (2) To DISABLE fitting a FACTOR, set param$var_FACTOR == NULL. Both sampling for the
 ###             FACTOR and regression for the FACTOR will be disabled.
+###         (3) Object format for data.train and data.test:
+###             data.train = list(
+###		           obs = data.frame(src.id, dst.id, src.context, dst.context, edge.context, y),
+###                feature = list(x_src, x_dst, x_ctx, x_obs)
+###             )
+###             data.test has the same format.
 ###
 ### IMPORTANT NOTE:
 ###   (1) If we predict using E[u_i]E[v_j], we should also use E[u_i]E[v_j] in fitting (instead of E[u_i v_j])
@@ -52,15 +58,12 @@
 ###                             if is.null(test.obs), then this output will NOT be available.
 ###
 fit.multicontext <- function(
-	obs,        # Observation table
-	feature,    # Features
 	init.model, # Initial model = list(factor, param)
 	nSamples,   # Number of samples drawn in each E-step: could be a vector of size nIter.
 	nBurnIn,    # Number of burn-in draws before take samples for the E-step: could be a vector of size nIter.
 	nIter=NULL, # Number of EM iterations
-	test.obs=NULL,     # Test data: Observations for testing
-	test.feature=NULL, #            Features for testing
-	IDs=NULL,
+	data.train=NULL, # Training data
+	data.test=NULL,  # Test data (optional)
 	is.logistic=FALSE,
 	out.level=0,  # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
 	out.dir=NULL, # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
@@ -75,15 +78,46 @@ fit.multicontext <- function(
 	rm.factors.without.obs.in.loglik=TRUE,
 	ridge.lambda=c(b=1, g0=1, d0=1, h0=1, G=1, D=1, H=1), # (or a scalar) Add diag(lambda) to X'X in linear regression
 	approx.interaction=TRUE, # predict E[uv] as E[u]E[v].
-	zero.mean=rep(0,0), # zero.mean["alpha"] = TRUE  ->  g = 0, etc.
-	fix.var=NULL,       # fix.var[["u"]] = n -> var_u = n (NULL -> default, list() -> fix no var)
-	max.nObs.for.b=NULL # maximum number of observations to be used to fit b
+	zero.mean=rep(0,0),  # zero.mean["alpha"] = TRUE  ->  g = 0, etc.
+	fix.var=NULL,        # fix.var[["u"]] = n -> var_u = n (NULL -> default, list() -> fix no var)
+	max.nObs.for.b=NULL, # maximum number of observations to be used to fit b
+	# The following five are for backward competibility when data.train=NULL and/or data.test=NULL
+	IDs=NULL,
+	obs=NULL,          # Training data: Observation table
+	feature=NULL,      #                Features
+	test.obs=NULL,     # Test data: Observations for testing
+	test.feature=NULL  #            Features for testing
 ){
 	factor = init.model$factor;
 	param  = init.model$param;
 	param$approx.interaction = approx.interaction;
 	if(approx.interaction) test.obs.for.Estep = NULL
 	else                   test.obs.for.Estep = test.obs;
+	
+	# setup obs, feature, test.obs, test.feature
+	if(!is.null(data.train)){
+		if(!all(c("obs", "feature") %in% names(data.train))) stop("Please check input parameter 'data.train' when calling function fit.multicontext or run.multicontext: data.train$obs and data.train$feature cannot be NULL");
+		if(!is.null(obs)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'obs=NULL'");
+		if(!is.null(feature)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'feature=NULL'");
+		obs=data.train$obs; 
+		feature=data.train$feature;
+		data.train$obs = NULL;
+		data.train$feature = NULL;
+	}else{
+		if(is.null(obs) || is.null(feature)) stop("Please specify input parameter 'data.train' when calling function fit.multicontext or run.multicontext");
+	}
+	if(!is.null(data.test)){
+		if(!all(c("obs", "feature") %in% names(data.test))) stop("Please check input parameter 'data.test' when calling function fit.multicontext or run.multicontext: data.test$obs and data.test$feature cannot be NULL");
+		if(!is.null(test.obs)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.test', then you should set 'test.obs=NULL'");
+		if(!is.null(test.feature)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.test', then you should set 'test.feature=NULL'");
+		test.obs=data.test$obs; 
+		test.feature=data.test$feature;
+		if(is.null(IDs)) IDs = data.test$IDs;
+	}else{
+		if(( is.null(test.obs) && !is.null(test.feature)) ||
+		   (!is.null(test.obs) &&  is.null(test.feature))) 
+	  		stop("If you want to supply test data to the fitting code, please specify input parameter 'data.test' when calling function fit.multicontext or run.multicontext");
+	}
 	
 	# Sanity check
 	if(out.level > 0 && is.null(out.dir)) stop("Please specify input parameter 'out.dir' when calling function fit.multicontext or run.multicontext with out.level > 0");
@@ -292,10 +326,10 @@ fit.multicontext <- function(
 		time.used.3 = proc.time() - b.time.test;
 		
 		if(verbose >= 1){
-			cat("  training loss:       ", attr(loglik$CD,"loss"), " (",time.used.TestLoss[3]," sec)\n",sep="");			
+			cat("  training loss:       ", attr(loglik$CD,"loss"), "\n",sep="");			
 			if(!is.null(test.obs)) 
 			cat("      test loss:       ", prediction$test.loss, " (",time.used.TestLoss[3]," sec)\n",sep="");
-		} 
+		}
 		
 		###
 		### Update the model.minTestLoss model if the TestLoss decreases
@@ -312,7 +346,8 @@ fit.multicontext <- function(
 				out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
 				prediction=prediction, loglik=loglik$CD, 
 				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite, 
-				TimeEStep=time.used.1[3], TimeMStep=time.used.2[3], TimeTest=time.used.3[3], verbose=verbose, name="model"
+				TimeEStep=time.used.1[3], TimeMStep=time.used.2[3], TimeTest=time.used.3[3], verbose=verbose, name="model",
+				data.train=data.train
 		);
 	}
 	
@@ -338,15 +373,19 @@ fit.multicontext <- function(
 #   setting = data.frame(name, nFactors, has.u, has.gamma, nLocalFactors, is.logistic)
 #                                        T/F    T/F        0 or n         T/F
 #   Output dir is out.dir_name
+#   data.train = list(
+#		obs = data.frame(src.id, dst.id, src.context, dst.context, edge.context, y),
+#       feature = list(x_src, x_dst, x_ctx, x_obs)
+#   )
+#   data.test has the same format
+#
 run.multicontext <- function(
-	obs,        # Observation table
-	feature,    # Features
+	data.train=NULL, # Training data
 	setting,    # Model setting
 	nSamples,   # Number of samples drawn in each E-step: could be a vector of size nIter.
 	nBurnIn,    # Number of burn-in draws before take samples for the E-step: could be a vector of size nIter.
 	nIter=NULL, # Number of EM iterations
-	test.obs=NULL,     # Test data: Observations for testing
-	test.feature=NULL, #            Features for testing
+	data.test=NULL, # Test data (optional)
 	return.models=FALSE,
 	approx.interaction=TRUE, # predict E[uv] as E[u]E[v].
 	reg.algo=NULL,     # The regression algorithm to be used in the M-step (NULL => linear regression)
@@ -356,7 +395,6 @@ run.multicontext <- function(
 	var_v=1, var_u=1, var_w=1, var_y=NULL,
 	relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 	# others
-	IDs=NULL,
 	out.level=0,  # out.level=1: Save the factor & parameter values to out.dir/model.last and out.dir/model.minTestLoss
 	out.dir=NULL, # out.level=2: Save the factor & parameter values of each iteration i to out.dir/model.i
 	out.overwrite=FALSE,
@@ -372,7 +410,13 @@ run.multicontext <- function(
 	zero.mean=rep(0,0), # zero.mean["alpha"] = TRUE  ->  g = 0, etc.
 	fix.var=NULL,       # fix.var[["u"]] = n -> var_u = n (NULL -> default, list() -> fix no var)
 	max.nObs.for.b=NULL,# maximum number of observations to be used to fit b
-	rnd.seed.init=NULL, rnd.seed.fit=NULL
+	rnd.seed.init=NULL, rnd.seed.fit=NULL,
+	# The following five are for backward competibility when data.train=NULL and/or data.test=NULL
+	IDs=NULL,
+	obs=NULL,          # Training data: Observation table
+	feature=NULL,      #                Features
+	test.obs=NULL,     # Test data: Observations for testing
+	test.feature=NULL  #            Features for testing
 ){
 	if(length(unique(setting$name)) != nrow(setting)) stop("Please check input parameter 'setting' when calling function run.multicontext: setting$name must be a column of unique identifiers");
 	if(!out.overwrite){
@@ -408,7 +452,7 @@ run.multicontext <- function(
 		if(!is.null(rnd.seed.init)) set.seed(rnd.seed.init);
 		begin.time = proc.time();
 		init = init.simple.random(
-			obs=obs, feature=feature, 
+			data.train=data.train, obs=obs, feature=feature, 
 			nFactors=setting[k,"nFactors"], has.u=setting[k,"has.u"], has.gamma=setting[k,"has.gamma"], 
 			nLocalFactors=setting[k,"nLocalFactors"], is.logistic=setting[k,"is.logistic"],
 			var_alpha=var_alpha, var_beta=var_beta, var_gamma=var_gamma, 
@@ -420,6 +464,7 @@ run.multicontext <- function(
 		
 		if(!is.null(rnd.seed.fit)) set.seed(rnd.seed.fit);
 		ans = fit.multicontext(
+			data.train=data.train, data.test=data.test,
 			obs=obs, feature=feature, init.model=init, nSamples=nSamples, nBurnIn=nBurnIn, nIter=nIter,
 			test.obs=test.obs, test.feature=test.feature,
 			IDs=IDs, is.logistic=setting[k,"is.logistic"],
@@ -633,12 +678,25 @@ MCEM_EStep.multicontext.C <- function(
 ###   g0, d0, h0, G, D, H are all 0
 ###
 init.simple.random <- function(
-	obs, feature, nFactors, has.u, has.gamma, 
+	data.train=NULL, obs=NULL, feature=NULL, nFactors, has.u, has.gamma, 
 	nLocalFactors=NULL, is.logistic=FALSE,
 	var_alpha=1, var_beta=1, var_gamma=1, 
 	var_v=1, var_u=1, var_w=1, var_y=1,
 	relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1
 ){
+	# setup obs, feature, test.obs, test.feature
+	if(!is.null(data.train)){
+		if(!all(c("obs", "feature") %in% names(data.train))) stop("Please check input parameter 'data.train' when calling function fit.multicontext or run.multicontext: data.train$obs and data.train$feature cannot be NULL");
+		if(!is.null(obs)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'obs=NULL'");
+		if(!is.null(feature)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'feature=NULL'");
+		obs=data.train$obs; 
+		feature=data.train$feature;
+		data.train$obs = NULL;
+		data.train$feature = NULL;
+	}else{
+		if(is.null(obs) || is.null(feature)) stop("Please specify input parameter 'data.train' when calling function fit.multicontext or run.multicontext");
+	}
+	
 	nObs = nrow(obs); nSrcNodes = nrow(feature$x_src); nDstNodes = nrow(feature$x_dst);
 	nSrcFeatures  = ncol(feature$x_src); 
 	nDstFeatures  = ncol(feature$x_dst);
