@@ -2,7 +2,7 @@
 \subsection{Quick Start}
 \label{sec:bst-quick-start}
 
-In this section, we describe how to fit BST models using this package without much need for familiarity of R or deep understanding of the code. Before you run the sample code, please make sure you are in the top-level directory of the installed code, i.e. by using Linux command {\tt ls}, you should be able to see files "LICENSE" and "README".
+In this section, we describe how to fit BST models using this package without much need for familiarity of R or deep understanding of the code. Before you run the sample code, please make sure you are in the top-level directory of the installed code, i.e. by using Linux command {\tt ls}, you should be able to see files ``LICENSE" and ``README".
 
 \parahead{Step 1}
 Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names. Assuming we use the dense format of the feature files, a sample code can be
@@ -36,19 +36,26 @@ We start fitting the model by loading the function {\tt fit.bst} in {\tt src/R/B
 {\small\begin{verbatim}
 >source("src/R/BST.R");
 \end{verbatim}}
-Then we run a simple latent factor model using the following command
+Then we can run a simple latent factor model without any feature using the following command
+{\small\begin{verbatim}
+>ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
+		 out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", model.name="uvw", 
+		 nFactors=3, nIter=10);
+\end{verbatim}}
+Or with all the feature files
 {\small\begin{verbatim}
 >ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
-	x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-	out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
-	model.name="uvw", nFactors=3, nIter=10);
+		 x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+		 out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
+		 model.name="uvw", nFactors=3, nIter=10);
 \end{verbatim}}
 Basically we put all the loaded data sets as input of the function, specify the output directory prefix as {\tt /tmp/unit-test/simulated-mtx-uvw-10K}, and run model {\tt uvw}. Note that the model name is quite arbitrary, and the final output directory for model {\tt uvw} is {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw}. For model {\tt uvw}, we use 3 factors and run 10 EM iterations. 
 
 \parahead{Step 3}
-Once Step 2 is finished, we have the predicted values of the response variable $y$, since we have the test data as input of the function (If we do not have test data, we can simply omit the {\tt obs.test} and {\tt x.obs.test} option, and the final output would only have model parameters without prediction results).  Check out the file {\tt prediction} inside the output directory (In our example, {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw/prediction} is the filename). The file has two columns: the original observed $y$ and the predicted $y$ (the {\tt pred\_y} column). Standard metrics such as complete data log-likelihood and RMSE (root mean squared error) have been generated in the file {\tt summary}. Check Section \ref{sec:output} for more details.
+Once Step 2 is finished, we have the predicted values of the response variable $y$, since we have the test data as input of the function (If we do not have test data, we can simply omit the {\tt obs.test} and {\tt x.obs.test} option, and the final output would only have model parameters without prediction results).  Check out the file {\tt prediction} inside the output directory (In our example, {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw/prediction} is the filename). The file has two columns: the original observed $y$ and the predicted $y$ (the {\tt pred\_y} column). Standard metrics such as complete data log-likelihood and RMSE (root mean squared error) have been generated in the file {\tt summary}. Check Section \ref{sec:model-output} for more details.
 
-Please note that the predicted values of $y$ for model {\tt uvw} can also be found at {\tt ans$pred.y$uvw}.
+Please note that the predicted values of $y$ for model {\tt uvw} can also be found at {\tt ans\$pred.y\$uvw}.
+
 \parahead{Run multiple models simultaneously}
 We actually are able to run multiple BST models simultaneously using the following command
 {\small\begin{verbatim}
@@ -78,7 +85,7 @@ Here we are able to run two models: {\tt uvw1} and {\tt uvw2} simultaneously by 
 \begin{itemize}
 \item {\tt rm.self.link}: Whether to remove self-edges.  If {\tt src.dst.same=TRUE}, you can choose to remove observations with ${\tt src\_id} = {\tt dst\_id}$ by setting {\tt rm.self.link=FALSE}.  Otherwise, {\tt rm.self.link} should be set to {\tt FALSE}. The default of {\tt rm.self.link} is FALSE.
 \item {\tt add.intercept}: Whether you want to add an intercept to each feature matrix.  If {\tt add.intercept=TRUE}, a column of all 1s will be added to every feature matrix. The default of {\tt add.intercept} is TRUE.
-\item {\tt has.gamma} specifies whether to include $\gamma_k$ in the model specified in Eq~\ref{eq:uvw-model} or not.  If {\tt has.gamm=FALSE}, $\gamma_k$ will be disabled or removed from the model. For the default, {\tt has.gamma} is set as FALSE unless the training response data {\tt obs.train} do not have any source or destination context, but have edge context.
+\item {\tt has.gamma} specifies whether to include $\gamma_k$ in the model specified in Equation ~\ref{eq:uvw-model} or not.  If {\tt has.gamma=FALSE}, $\gamma_k$ will be disabled or removed from the model. For the default, {\tt has.gamma} is set as FALSE unless the training response data {\tt obs.train} do not have any source or destination context, but have edge context.
 \item {\tt reg.algo} and {\tt reg.control} specify how the regression priors will to be fitted.  If they are set to {\tt NULL} (default), R's basic linear regression function {\tt lm} will be used to fit the prior regression coefficients $\bm{g}, \bm{d}, \bm{h}, G, D$ and $H$.  Currently, we only support two other algorithms {\tt "GLMNet"} and {\tt "RandomForest"}. Therefore, {\tt reg.algo} can only have three types of values: NULL, {\tt "GLMNet"} and {\tt "RandomForest"} (both are strings). Notice that if {\tt "RandomForest"} is used, the regression priors become nonlinear; see~\cite{gmf:recsys11} for more information.
 \item {\tt nBurnin} is the number of burn-in samples per E-step. The default is 10\% of {\tt nSamplesPerIter}.
 \item {\tt init.params} is a list of the initial values of all the variance component parameters. The default values of {\tt init.params} is

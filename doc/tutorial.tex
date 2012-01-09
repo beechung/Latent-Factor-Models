@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{bm}
+\usepackage{comment}
 \newcommand{\parahead}[1]{\vspace{0.15in}\noindent{\bf #1:}}
 
 \begin{document}
@@ -10,7 +11,7 @@
 \author{Bee-Chung Chen}
 \maketitle
 
-This paper describes how you can fit latent factor models (e.g., \cite{rlfm:kdd09,bst:kdd11,gmf:recsys11}) using the open source package developed in Yahoo! Labs.
+This tutorial describes how you can fit latent factor models (e.g., \cite{rlfm:kdd09,bst:kdd11,gmf:recsys11}) using the open source package developed in Yahoo! Labs.
 
 {\small\begin{verbatim}
 Stable repository: https://github.com/yahoo/Latent-Factor-Models
@@ -29,10 +30,11 @@ To install R, go to {\tt http://www.r-project.org/}.  Click CRAN on the left pan
 
 Alternatively, you can install R using linux's package management software.  In this case, please install {\tt r-base}, {\tt r-base-core}, {\tt r-base-dev}, {\tt r-recommended}.
 
-After installing R, enter R by simply typing {\tt R} and install the following R packages: {\tt Matrix} and {\tt glmnet}.  Notice that these two packages are not required if you do not need to handle sparse feature vectors or matrices.  To install these R packages, use the following commands in R.
+After installing R, enter R by simply typing {\tt R} and install the following R packages: {\tt Matrix}, {\tt glmnet} and {\tt randomForest}. Note that the R packages {\tt glmnet} and {\tt randomForest} are not required unless you want to use them in the regression priors of the model (the parameter {\tt reg.algo} in {\tt control} of {\tt fit.bst}).  To install these R packages, use the following commands in R.
 {\small\begin{verbatim}
 > install.packages("Matrix");
 > install.packages("glmnet");
+> install.packages("randomForest");
 \end{verbatim}}
 \noindent Make sure that you can run R by simply typing {\tt R}.  Otherwise, please use alias to point {\tt R} to your R executable file.  This is required for {\tt make} to work properly.
 
@@ -77,16 +79,16 @@ where $\bm{b}$ is the regression coefficient vector on feature vector $\bm{x}_{i
 \parahead{Regression Priors}
 The priors of the latent factors are specified in the following:
 \begin{align}
-\alpha_{ip} & \sim \mathcal{N}(\bm{g}_{p}^\prime \bm{x}_{i} + q_{p} \alpha_i, ~\sigma_{\alpha,p}^2),
+\alpha_{ip} & \sim \mathcal{N}(\bm{g}_{p}(\bm{x}_{i}) + q_{p} \alpha_i, ~\sigma_{\alpha,p}^2),
 	~~~~ \alpha_i \sim \mathcal{N}(0, 1) \label{eq:alpha} \\
-\beta_{jq} & \sim \mathcal{N}(\bm{d}_{q}^\prime \bm{x}_{j} + r_{q} \beta_j, ~\sigma_{\beta,q}^2),
+\beta_{jq} & \sim \mathcal{N}(\bm{d}_{q}(\bm{x}_{j}) + r_{q} \beta_j, ~\sigma_{\beta,q}^2),
 	~~~~ \beta_j  \sim \mathcal{N}(0, 1) \label{eq:beta} \\
-\gamma_{k} & \sim \mathcal{N}(\bm{h}' \bm{x}_k, \,\sigma_{\gamma}^2 I), \\
-\bm{u}_{i} & \sim \mathcal{N}(G' \bm{x}_i, \,\sigma_{u}^2 I), ~~~
-\bm{v}_{j} \sim \mathcal{N}(D' \bm{x}_j, \,\sigma_{v}^2 I), ~~~
-\bm{w}_{k} \sim \mathcal{N}(H' \bm{x}_k, \,\sigma_{w}^2 I), \label{eq:uvw}
+\gamma_{k} & \sim \mathcal{N}(\bm{h}(\bm{x}_k), \,\sigma_{\gamma}^2 I), \\
+\bm{u}_{i} & \sim \mathcal{N}(G(\bm{x}_i), \,\sigma_{u}^2 I), ~~~
+\bm{v}_{j} \sim \mathcal{N}(D(\bm{x}_j), \,\sigma_{v}^2 I), ~~~
+\bm{w}_{k} \sim \mathcal{N}(H(\bm{x}_k), \,\sigma_{w}^2 I), \label{eq:uvw}
 \end{align}
-where $\bm{g}_p$, $q_p$, $\bm{d}_q$, $r_q$, $G$, $D$ and $H$ are regression coefficient vectors and matrices.  These regression coefficients will be learned from data and provide the ability to make predictions for users or items that do not appear in training data.  The factors of these new users or items will be predicted based on their features through regression.
+where $\bm{g}_p(\cdot)$, $q_p(\cdot)$, $\bm{d}_q(\cdot)$, $r_q(\cdot)$, $G(\cdot)$, $D(\cdot)$ and $H(\cdot)$ are regression functions that can either be linear regression coefficients/matrices, or non-linear regression parameters such as random forests. These regression functions will be learned from data and provide the ability to make predictions for users or items that do not appear in training data.  The factors of these new users or items will be predicted based on their features through regression.
 
 \subsection{Toy Dataset}
 
@@ -112,9 +114,9 @@ The response data, also called observation data, is in {\tt obs-train.txt} and {
 \begin{enumerate}
 \item {\tt src\_id}: Source node ID (e.g., user $i$).
 \item {\tt dst\_id}: Destination node ID (e.g., item $j$).
-\item {\tt src\_context}: Source context ID (e.g., source context $p$).
-\item {\tt dst\_context}: Destination context ID (e.g., destination context $q$).
-\item {\tt ctx\_id}: Edge context ID (e.g., edge context $k$).
+\item {\tt src\_context}: Source context ID (e.g., source context $p$), an optional column.
+\item {\tt dst\_context}: Destination context ID (e.g., destination context $q$), an optional column.
+\item {\tt ctx\_id}: Edge context ID (e.g., edge context $k$), an optional column.
 \item {\tt y}: Response (e.g., the rating that user $i$ gives item $j$ in context $(k,p,q)$).
 \end{enumerate}
 Note that all of the above IDs can be numbers or character strings.
@@ -128,14 +130,14 @@ To read {\tt obs-train.txt}, run the following commands in R.
   "dst_context", "ctx_id", "y");
 \end{verbatim}
 }
-It is important to note that the {\bf column names} of an observation table have to be exactly {\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context}, {\tt ctx\_id} and {\tt y}.  The model fitting code does not recognize other names.
+It is important to note that the {\bf column names} of an observation table have to be exactly {\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context}, {\tt ctx\_id} and {\tt y}. The model fitting code does not recognize other names. Also, note that {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id} are optional columns, i.e. a data with only 3 columns: {\tt src\_id}, {\tt dst\_id}, and {\tt y} still run and the model actually becomes the RLFM model introduced in \cite{rlfm:kdd09}. 
 
 \parahead{Source, Destination and Context Features}
-The features vectors of source nodes ($\bm{x}_i$), destination nodes ($\bm{x}_j$), edge contexts ($\bm{x}_k$) and training and test observations ($\bm{x}_{ijk}$) are in \\
+The feature vectors of source nodes ($\bm{x}_i$), destination nodes ($\bm{x}_j$), edge contexts ($\bm{x}_k$) and training and test observations ($\bm{x}_{ijk}$) are in \\
 \indent{\tt {\it type}-feature-user.txt}, \\
 \indent{\tt {\it type}-feature-item.txt}, \\
 \indent{\tt {\it type}-feature-ctxt.txt}, \\
-where {\it type} = "dense" for the dense format and {\it type} = "sparse" for the sparse format.
+where {\it type} = {\tt "dense"} for the dense format and {\it type} = {\tt "sparse"} for the sparse format.
 
 For the dense format, take {\tt dense-feature-user.txt} for example.  The first column is {\tt src\_id} (the {\tt src\_id} column in the observation table refers to this column to get the feature vector of the source node for each observation).  It is important to note that the {\bf name of the first column} has to be exactly {\tt src\_id}.  The rest of the columns specify the feature values and the column names can be arbitrary.
 
@@ -158,7 +160,7 @@ It is important to note that the {\bf column names} have to be exactly {\tt src\
 The features vectors of training and test observations ($\bm{x}_{ijk}$) are in\\
 \indent{\tt {\it type}-feature-obs-train.txt}, \\
 \indent{\tt {\it type}-feature-obs-test.txt}, \\
-where {\it type} = "dense" for the dense format and {\it type} = "sparse" for the sparse format.
+where {\it type} = {\tt "dense"} for the dense format and {\it type} = {\tt "sparse"} for the sparse format.
 
 For the dense format, take {\tt dense-feature-obs-train.txt} for example.  The $n$th line specifies the feature vector of observation on the $n$th line of {\tt obs-train.txt}.  Since there is a line-by-line correspondence, there is no need to have an ID column.  Each column in this file represents a feature and the column names can be arbitrary.
 
@@ -180,10 +182,12 @@ It is important to note that the {\bf column names} have to be exactly {\tt src\
 
 \subsection{Model Fitting Details}
 \label{sec:fitting}
+In this section we do a deep-dive of this package by trying to avoid the wrapper function {\tt fit.bst}; hence it includes more details and insights of how to use this package to fit your own problems. All the R code written in this section can be 
+seen in Example 1 in {\tt src/R/examples/tutorial-BST.R}.  For succinctness, we ignore some R commands in the following description.
 
-See Example 1 in {\tt src/R/examples/tutorial-BST.R} for the R script.  For succinctness, we ignore some R commands in the following description.
+\parahead{Step 1} Read all the data sets in the same way as described in Step 1 in Section \ref{sec:bst-quick-start}.
 
-\parahead{Step 1} 
+\begin{comment}
 Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names.
 {\small\begin{verbatim}
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
@@ -209,7 +213,7 @@ x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
         sep="\t", header=FALSE, as.is=TRUE);
 names(x_ctx)[1] = "ctx_id";
 \end{verbatim}}
-
+\end{comment}
 \parahead{Step 2} Index the training and test data.  Functions {\tt indexData} and {\tt indexTestData} (defined in {\tt rc/R/model/multicontext\_model\_utils.R}) convert the input data tables into the right data structure.  In particular, they replace the original IDs ({\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id}) by consecutive index numbers, and convert feature tables (data frames) into feature matrices.
 {\small\begin{verbatim}
 data.train = indexData(
@@ -323,7 +327,7 @@ ans = run.multicontext(
 \begin{itemize}
 \item {\tt nSamples}, {\tt nBurnIn} and {\tt nIter} determine how long the procedure will run.  In the above example, the procedure runs 10 EM iterations.  In each iteration, it draws 220 Gibbs samples, where the first 20 samples are burn-in samples (which are thrown away) and the rest 200 samples are used to compute the Monte Carlo means in the E-step of this iteration.  In our experience, 10-20 EM iterations with 100-200 samples per iteration are usually sufficient.
 \item {\tt reg.algo} and {\tt reg.control} specify how the regression priors will to be fitted.  If they are set to {\tt NULL}, R's basic linear regression function {\tt lm} will be used to fit the prior regression coefficients $\bm{g}, \bm{d}, \bm{h}, G, D$ and $H$.  Currently, we only support two other algorithms {\tt GLMNet} and {\tt RandomForest}.  Notice that if {\tt RandomForest} is used, the regression priors become nonlinear; see~\cite{gmf:recsys11} for more information.
-\item {\tt out.level} and {\tt out.dir} specify what and where the fitting procedure will output.  If {\tt out.level} > 0, each model specified in {\tt setting} (i.e., each row in the {\tt setting} table) will be output to a separate directory.  The output directory name of the $m$th model is
+\item {\tt out.level} and {\tt out.dir} specify what and where the fitting procedure will output.  If {\tt out.level} $> 0$, each model specified in {\tt setting} (i.e., each row in the {\tt setting} table) will be output to a separate directory.  The output directory name of the $m$th model is
 {\small\begin{verbatim}
 paste(out.dir, "_", setting$name[m], sep="")
 \end{verbatim}}

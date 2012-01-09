@@ -36,8 +36,9 @@ fit.bst <- function(
   if (!is.null(obs.test)) {
     if (is.null(obs.test$src_id) || is.null(obs.test$dst_id) || is.null(obs.test$y)) stop("obs.test must have src_id, dst_id, and response y");
   }
+
   if (is.null(x_obs.train) && !is.null(x_obs.test)) stop("x_obs.train does not exist while x_obs.test is used!");
-  if (is.null(x_obs.test) && !is.null(x_obs.train)) stop("x_obs.test does not exist while x_obs.train is used!");
+  if (is.null(x_obs.test) && !is.null(x_obs.train) && !is.null(obs.test)) stop("x_obs.test does not exist while x_obs.train is used!");
   if (!is.null(x_obs.train) && !is.null(x_obs.test)) {
     if (ncol(x_obs.train)!=ncol(x_obs.test)) stop("ncol(x_obs.train)!=ncol(x_obs.test)! The number of features for training and test should be exactly the same!");
   }
