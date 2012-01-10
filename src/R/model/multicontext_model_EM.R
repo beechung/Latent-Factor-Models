@@ -93,6 +93,7 @@ fit.multicontext <- function(
 	param$approx.interaction = approx.interaction;
 	if(approx.interaction) test.obs.for.Estep = NULL
 	else                   test.obs.for.Estep = test.obs;
+	param$is.logistic = is.logistic;
 	
 	# setup obs, feature, test.obs, test.feature
 	if(!is.null(data.train)){

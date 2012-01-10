@@ -1,5 +1,67 @@
 
 ###
+### Quick Start
+###
+
+# (1) Read input data
+input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+# (1.1) Training observations and observation features
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+		sep="\t", header=FALSE, as.is=TRUE);
+names(obs.train) = c("src_id", "dst_id", "src_context", 
+		"dst_context", "ctx_id", "y");
+x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
+				sep=""), sep="\t", header=FALSE, as.is=TRUE);
+# (1.2) Test observations and observation features
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+		sep="\t", header=FALSE, as.is=TRUE);
+names(obs.test) = c("src_id", "dst_id", "src_context", 
+		"dst_context", "ctx_id", "y");
+x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
+				sep=""), sep="\t", header=FALSE, as.is=TRUE);
+# (1.3) User/item/context features
+x_src = read.table(paste(input.dir,"/dense-feature-user.txt",sep=""),
+		sep="\t", header=FALSE, as.is=TRUE);
+names(x_src)[1] = "src_id";
+x_dst = read.table(paste(input.dir,"/dense-feature-item.txt",sep=""),
+		sep="\t", header=FALSE, as.is=TRUE);
+names(x_dst)[1] = "dst_id";
+x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
+		sep="\t", header=FALSE, as.is=TRUE);
+names(x_ctx)[1] = "ctx_id";
+
+# (2) Fit Models
+source("src/R/BST.R");
+# (2.1) Fit a model without features
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
+		out.dir = "/tmp/bst/quick-start", model.name="uvw3", 
+		nFactors=3, nIter=10);
+# (2.2) Fit a model with features
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+		x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+		out.dir = "/tmp/bst/quick-start", 
+		model.name="uvw3-F", nFactors=3, nIter=10);
+
+# (3) Check the Output
+# (3.1) Check the summary of EM iterations
+read.table("/tmp/bst/quick-start_uvw3-F/summary", header=TRUE);
+# (3.2) Check the fitted model
+load("/tmp/bst/quick-start_uvw3-F/model.last");
+str(param);
+str(factor);
+str(data.train);
+
+# (4) Make Predictions
+# (1.2) Test observations and observation features
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+		sep="\t", header=FALSE, as.is=TRUE);
+names(obs.test) = c("src_id", "dst_id", "src_context", 
+		"dst_context", "ctx_id", "y");
+x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
+				sep=""), sep="\t", header=FALSE, as.is=TRUE);
+
+
+###
 ### Example 1: Fit the BST model with dense features
 ###
 library(Matrix);

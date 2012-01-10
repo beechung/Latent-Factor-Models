@@ -7,8 +7,8 @@ FILE: obs-{train,test}.txt
       Columns:
         1. src_id: User ID
         2. dst_id: Item ID
-        3. src_context: The mode of the user when rating the item
-        4. dst_context: The mode of the item when rated by the user
+        3. src_context: The context of the user when rating the item
+        4. dst_context: The context of the item when rated by the user
         5. ctx_id: The context when the user gives the rating to the item
         6. y: The rating value
 

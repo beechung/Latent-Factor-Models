@@ -56,7 +56,7 @@ fit.bst <- function(
   # Index test data
   if (!is.null(obs.test)) {
     data.test = indexTestData(
-                  data.train=data.train, obs=obs.test,
+              data.train=data.train, obs=obs.test,
     		  x_obs=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx
 		);
   } else {
@@ -105,14 +105,11 @@ fit.bst <- function(
   }
   init.params = control$init.params;
   ans = run.multicontext(
-                obs=data.train$obs,         # Observation table
-                feature=data.train$feature, # Features
+		  		data.train=data.train, data.test=data.test,
                 setting=setting,    # Model setting
                 nSamples=nSamplesPerIter,   # Number of samples drawn in each E-step: could be a vector of size nIter.
                 nBurnIn=nBurnin,     # Number of burn-in draws before take samples for the E-step: could be a vector of size nIter.
                 nIter=nIter,       # Number of EM iterations
-                test.obs=data.test$obs,         # Test data: Observations for testing (optional)
-                test.feature=data.test$feature, #            Features for testing     (optional)
                 approx.interaction=TRUE, # In prediction, predict E[uv] as E[u]E[v].
                 reg.algo=reg.algo,     # The regression algorithm to be used in the M-step (NULL => linear regression)
                 reg.control=control$reg.control,  # The control paramter for reg.algo
@@ -196,3 +193,31 @@ fit.bst.control <- function (
   }
   list(rm.self.link=rm.self.link,add.intercept=add.intercept, has.gamma=has.gamma, reg.algo=reg.algo, reg.control=reg.control, nBurnin=nBurnin, init.params=init.params, random.seed=random.seed)
 }
+
+predict.bst <- function(
+	model.file,
+	obs.test, # The testing response data
+	x_obs.test = NULL, # The data of testing observation features
+	x_src = NULL, # The data of context features for source nodes
+	x_dst = NULL, # The data of context features for destination nodes
+	x_ctx = NULL  # The data of context features for edges	
+){
+	if(!file.exists(model.file)) stop("The specified model.file='",model.file,"' does not exist.  Please specify an existing model file.");
+	if("factor" %in% ls()) rm(factor);
+	if("param"  %in% ls()) rm(param);
+	if("data.train" %in% ls()) rm(data.train);
+	load(model.file);
+	if(!all(c("factor", "param", "data.train") %in% ls())) stop("Some problem with model.file='",model.file,"': The file is not a model file or is corrupted.");
+	data.test = indexTestData(
+			data.train=data.train, obs=obs.test,
+			x_obs=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx
+	);
+	
+	pred = predict.multicontext(
+			model=list(factor=factor, param=param), 
+			obs=data.test$obs, feature=data.test$feature, is.logistic=param$is.logistic
+	);
+
+	return(pred);
+}
+

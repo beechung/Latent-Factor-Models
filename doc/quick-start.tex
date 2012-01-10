@@ -2,12 +2,13 @@
 \subsection{Quick Start}
 \label{sec:bst-quick-start}
 
-In this section, we describe how to fit BST models using this package without much need for familiarity of R or deep understanding of the code. Before you run the sample code, please make sure you are in the top-level directory of the installed code, i.e. by using Linux command {\tt ls}, you should be able to see files ``LICENSE" and ``README".
+In this section, we describe how to fit the BST model to the toy dataset using this package without deep understanding of the fitting procedure.  Before you run the sample code, please make sure you are in the top-level directory (i.e. by using Linux command {\tt ls}, you should be able to see files {\tt LICENSE} and {\tt README}).
 
-\parahead{Step 1}
-Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names. Assuming we use the dense format of the feature files, a sample code can be
+\subsubsection{Step 1: Read Data}
+
+We fist read training and test observation tables (named as {\tt obs.train} and {\tt obs.test} in the following R script), their corresponding observation feature tables (named as {\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names.  If you remove some optional columns, you must make sure that you remove the corresponding column names correctly. Assuming we use the dense format of the feature files, a sample R script is in the following.
 {\small\begin{verbatim}
->input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
+input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
             sep="\t", header=FALSE, as.is=TRUE);
 names(obs.train) = c("src_id", "dst_id", "src_context", 
@@ -31,30 +32,75 @@ x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
 names(x_ctx)[1] = "ctx_id";
 \end{verbatim}}
 
-\parahead{Step 2}
+\subsubsection{Step 2: Fit Model(s)}
 We start fitting the model by loading the function {\tt fit.bst} in {\tt src/R/BST.R}. 
 {\small\begin{verbatim}
->source("src/R/BST.R");
+> source("src/R/BST.R");
 \end{verbatim}}
-Then we can run a simple latent factor model without any feature using the following command
+\noindent Then, we can fit a simple latent factor model without any feature using the following command.
 {\small\begin{verbatim}
->ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
-		 out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", model.name="uvw", 
-		 nFactors=3, nIter=10);
+> ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
+        out.dir = "/tmp/bst/quick-start", model.name="uvw3", 
+        nFactors=3, nIter=10);
 \end{verbatim}}
-Or with all the feature files
+\noindent Or, we can fit a model using all the features.
 {\small\begin{verbatim}
->ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
-		 x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-		 out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", 
-		 model.name="uvw", nFactors=3, nIter=10);
+> ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+        x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+        out.dir = "/tmp/bst/quick-start", 
+        model.name="uvw3-F", nFactors=3, nIter=10);
 \end{verbatim}}
-Basically we put all the loaded data sets as input of the function, specify the output directory prefix as {\tt /tmp/unit-test/simulated-mtx-uvw-10K}, and run model {\tt uvw}. Note that the model name is quite arbitrary, and the final output directory for model {\tt uvw} is {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw}. For model {\tt uvw}, we use 3 factors and run 10 EM iterations. 
+In the above examples, we basically put all the loaded data as input to the fitting function, specify the output directory prefix as {\tt /tmp/bst/quick-start}, and fit a model (with name {\tt uvw3} or {\tt uvw3-F}). Note that the model name can be arbitrary, and the final output directory for model {\tt uvw3} is in {\tt /tmp/bst/quick-start\_uvw3}.  This model has 3 factors per node (i.e., $\bm{u}_i$, $\bm{v}_j$ and $\bm{w}_k$ are 3-dimensional vectors) and is fitted using 10 EM iterations.  
+If you do not have test data, you can simply omit input parameters {\tt obs.test} and {\tt x\_obs.test} when calling {\tt fit.bst}.
+More options and control parameters will be introduced later.
 
-\parahead{Step 3}
-Once Step 2 is finished, we have the predicted values of the response variable $y$, since we have the test data as input of the function (If we do not have test data, we can simply omit the {\tt obs.test} and {\tt x.obs.test} option, and the final output would only have model parameters without prediction results).  Check out the file {\tt prediction} inside the output directory (In our example, {\tt /tmp/unit-test/simulated-mtx-uvw-10K\_uvw/prediction} is the filename). The file has two columns: the original observed $y$ and the predicted $y$ (the {\tt pred\_y} column). Standard metrics such as complete data log-likelihood and RMSE (root mean squared error) have been generated in the file {\tt summary}. Check Section \ref{sec:model-output} for more details.
+\subsubsection{Step 3: Check the Output}
+\label{sec:model-output}
 
-Please note that the predicted values of $y$ for model {\tt uvw} can also be found at {\tt ans\$pred.y\$uvw}.
+The two main output files in an output directory are {\tt summary} and {\tt model.last}.
+
+\parahead{Summary File}
+It records a number of statistics for each EM iteration.  To read a summary file, use the following R command.
+{\small\begin{verbatim}
+> read.table("/tmp/bst/quick-start_uvw3-F/summary", header=TRUE);
+\end{verbatim}}
+\noindent Explanation of the columns is in the following:
+\begin{itemize}
+\item {\tt Iter} specifies the iteration number.
+\item {\tt nSteps} records the number of Gibbs samples drawn in the E-step of that iteration.
+\item {\tt CDlogL}, {\tt TestLoss}, {\tt LossInTrain} and {\tt TestRMSE} record the complete data log likelihood, loss on the test data, loss on the training data and RMSE (root mean squared error) on the test data for the model at the end of that iteration.  For the Gaussian response model, the loss is defined as RMSE.  For the logistic response model, the loss is defined as negative average log likelihood per observation.
+\item {\tt TimeEStep}, {\tt TimeMStep} and {\tt TimeTest} record the numbers of seconds used to compute the E-step, M-step and predictions on test data in that iteration.
+\end{itemize}
+
+\parahead{Sanity Check}
+\begin{itemize}
+\item Check {\tt CDlogL} to see whether it increases sharply during the first few iterations and then oscillates at the end.
+\item Check {\tt TestLoss} to see whether it converges.  If not, more EM iterations are needed.
+\item Check {\tt TestLoss} and {\tt LossInTrain} to see whether the model overfits the data; i.e., TestLoss goes up, while LossInTrain goes down.  If so, try to simplify the model by reducing the number of factors and parameters.
+\end{itemize}
+You can monitor the summary file when the code is running.  When you see {\tt TestLoss} converges, kill the running process.
+
+\parahead{Model Files}
+The fitted models are saved in {\tt model.last} and {\tt model.minTestLoss}, which are R data binary files.  To load the models, run the following command.
+{\small\begin{verbatim}
+> load("/tmp/bst/quick-start_uvw3-F/model.last");
+> str(param);
+> str(factor);
+> str(data.train);
+\end{verbatim}}
+\noindent After we load the model, the fitted prior parameters are in object {\tt param} and the fitted latent factors are in object {\tt factor}.  Also, the object {\tt data.train} contains the ID mappings that are needed when we need to apply this model to a new test dataset.  Notice that {\tt data.train} does not contain actual data, but just meta information.  You do not need to understand these objects to apply this model to new test data.
+
+\subsubsection{Step 4: Make Predictions}
+
+Once Step 2 finishes, we have the predicted values of the response variable $y$ for the test data, since we have the test data as input to the fitting function. Check file {\tt prediction} inside the output directory (In our example, {\tt /tmp/bst/quick-start_uvw3-F/prediction} is the file name). The file has two columns: 
+\begin{enumerate}
+\item {\tt y}: The original observed $y$
+\item {\tt pred_y}: The predicted $y$
+\end{enumerate}
+Please note that the predicted values of $y$ for model {\tt uvw3-F} can also be found at {\tt ans\$pred.y[["uvw3-F"]]}.
+If you did not specify {\tt obs.test} and {\tt x.obs.test} when calling function {\tt fit.bst}, then there would be no prediction file.
+
+
 
 \parahead{Run multiple models simultaneously}
 We actually are able to run multiple BST models simultaneously using the following command

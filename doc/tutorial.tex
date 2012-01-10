@@ -8,7 +8,7 @@
 
 \begin{document}
 \title{Tutorial on How to Fit Latent Factor Models}
-\author{Bee-Chung Chen}
+\author{Bee-Chung Chen and Liang Zhang}
 \maketitle
 
 This tutorial describes how you can fit latent factor models (e.g., \cite{rlfm:kdd09,bst:kdd11,gmf:recsys11}) using the open source package developed in Yahoo! Labs.
@@ -40,7 +40,7 @@ After installing R, enter R by simply typing {\tt R} and install the following R
 
 \subsection{Be Familiar with R}
 
-This tutorial assumes that you are familiar with R, at least comfortable reading R code.  If not, please read \\
+This tutorial assumes that you are familiar with R, at least comfortable calling R functions, reading R code.  If not, please read \\
 {\tt http://cran.r-project.org/doc/manuals/R-intro.pdf}.
 
 \subsection{Compile C/C++ Code}
@@ -49,19 +49,19 @@ This is extremely simple.  Just type {\tt make} in the top-level directory (i.e.
 
 \section{Bias-Smoothed Tensor Model}
 
-The bias-smoothed tensor (BST) model~\cite{bst:kdd11} includes the regression-based latent factor model (RLFM)~\cite{rlfm:kdd09} and regular matrix factorization models as special cases.  In fact, the BST model presented here is more general than the model presented in~\cite{bst:kdd11}.  In the following, I demonstrate how to fit such a model and its special cases.  The R code of this section can be found in {\tt src/R/examples/tutorial-BST.R}.
+In this section, we demonstrate how to fit the bias-smoothed tensor (BST) model~\cite{bst:kdd11}, which includes the regression-based latent factor model (RLFM)~\cite{rlfm:kdd09} and regular matrix factorization models as special cases.  In fact, the BST model presented here is more general than the model presented in~\cite{bst:kdd11}.  It also provides the ability to use non-linear regression priors as described in~\cite{gmf:recsys11}.  The R script of this section can be found in {\tt src/R/examples/tutorial-BST.R}.
 
 \subsection{Model}
 
 We first specify the model in its most general form and then describe special cases.  Let $y_{ijkpq}$ denote the {\em response} (e.g., rating) that {\em source node} $i$ (e.g., user $i$) gives {\em destination node} $j$ (e.g., item $j$) in {\em context} $(k,p,q)$, where the context is specified by a three dimensional vector:
 \begin{itemize}
 \item {\em Edge context} $k$ specifies the context when the response occurs on the edge from node $i$ to node $j$; e.g., the rating on the edge from user $i$ to item $j$ was given when $i$ saw $j$ on web page $k$.
-\item {\em Source context} $p$ specifies the context (or mode) of the source node $i$ when this node gives the response; e.g., $p$ represents the category of item $j$, meaning that user $i$ are in different modes when rating items in different categories.
+\item {\em Source context} $p$ specifies the context (or mode) of the source node $i$ when this node gives the response; e.g., $p$ represents the category of item $j$, meaning that user $i$ are in different modes when rating items in different categories.  Notice that, in this example, $p$ represents an item category, instead of the user segment that $i$ belongs to; if it was the latter case, the user ID would completely determine the context, thus making this context information unnecessary.
 \item {\em Destination context} $q$ specifies the context (or mode) of the destination node $j$ when this node receives the response; e.g., $q$ represents the user segment that user $i$ belongs to, meaning that the response that an item receives depends on the segment that the user belongs to.
 \end{itemize}
-Notice that the context $(k,p,q)$ is assumed to be given and each individual response is assumed to occur in a single context.  Also note that when modeling a problem, we may not always need all the three components in the three dimensional context vector.
+Notice that the context $(k,p,q)$ is assumed to be given and each individual response is assumed to occur in a single context.  Also note that when modeling a problem, we may not always need all the three components in the three dimensional context vector.  Some examples will be given later.  It is important to note that, in the current implementation, the total number of source contexts and the total number of destination contexts cannot be too large (around 2 $\sim$ 100).  However, the total number of edge contexts can be large.
 
-Because $i$ always denotes a source node (e.g., a user), $j$ always denotes a destination node (e.g., an item) and $k$ always denotes an edge context, we slightly abuse our notation by using $\bm{x}_i$ to denote the feature vector of source node $i$, $\bm{x}_j$ to denote the feature vector of destination node $j$, $\bm{x}_k$ to denote the feature vector of edge context $k$, and $\bm{x}_{ijk}$ to denote the feature vector associated with the occasion when $i$ gives $j$ the response in context $k$.
+Because $i$ always denotes a source node (e.g., a user), $j$ always denotes a destination node (e.g., an item) and $k$ always denotes an edge context, we slightly abuse our notation by using $\bm{x}_i$ to denote the feature vector of source node $i$, $\bm{x}_j$ to denote the feature vector of destination node $j$, $\bm{x}_k$ to denote the feature vector of edge context $k$, and $\bm{x}_{ijk}$ to denote the feature vector associated with the occasion when $i$ gives $j$ the response in context $k$ (e.g., the time of day, day of week of the response).  Notice that we do not consider features for source and destination contexts because the number of such contexts are expected to be small; since each such context would have a relatively large number of observations, it usually does not need a feature-based regression prior.
 
 \parahead{Response model}
 For numeric response, we use the Gaussian response model; for binary response, we use the logistic response model.
@@ -88,11 +88,12 @@ The priors of the latent factors are specified in the following:
 \bm{v}_{j} \sim \mathcal{N}(D(\bm{x}_j), \,\sigma_{v}^2 I), ~~~
 \bm{w}_{k} \sim \mathcal{N}(H(\bm{x}_k), \,\sigma_{w}^2 I), \label{eq:uvw}
 \end{align}
-where $\bm{g}_p(\cdot)$, $q_p(\cdot)$, $\bm{d}_q(\cdot)$, $r_q(\cdot)$, $G(\cdot)$, $D(\cdot)$ and $H(\cdot)$ are regression functions that can either be linear regression coefficients/matrices, or non-linear regression parameters such as random forests. These regression functions will be learned from data and provide the ability to make predictions for users or items that do not appear in training data.  The factors of these new users or items will be predicted based on their features through regression.
+where $q_p$ and $r_q$ are regression coefficients; $\bm{g}_p(\cdot)$, $\bm{d}_q(\cdot)$, $\bm{h}(\cdot)$, $G(\cdot)$, $D(\cdot)$ and $H(\cdot)$ are regression functions that can either be linear regression coefficient vectors/matrices, or non-linear regression functions such as random forests. These regression functions will be learned from data and provide the ability to make predictions for users or items that do not appear in training data.  The factors of these new users or items will be predicted based on their features through regression.
 
-\subsection{Toy Dataset}
+\subsection{Data Format}
+\label{sec:data}
 
-In the following, we describe a toy dataset.  You can put your data in the same format to fit the model to your data.  This toy dataset is in the following directory:
+We introduce the input data format through the following toy dataset.  You can put your own data in the same format to fit the model to your data.  This toy dataset is in the following directory:
 \begin{verbatim}
 test-data/multicontext_model/simulated-mtx-uvw-10K
 \end{verbatim}
@@ -100,7 +101,7 @@ Please read the README file there to better understand this dataset, which was c
 \begin{verbatim}
 src/unit-test/multicontext_model/create-simulated-data-1.R
 \end{verbatim}
-This is a simulated dataset; i.e., the response values $y_{ijkpq}$ are generated according to a ground-truth model.  To see the ground-truth, run the following commands in R.
+This is a simulated dataset; i.e., the response values $y_{ijkpq}$ are generated according to a known ground-truth model.  To see the ground-truth, run the following commands in R.
 {\small
 \begin{verbatim}
 > load("test-data/multicontext_model/simulated-mtx-uvw-10K/ground-truth.RData");
@@ -109,14 +110,14 @@ This is a simulated dataset; i.e., the response values $y_{ijkpq}$ are generated
 \end{verbatim}
 }
 
-\parahead{Response Data}
-The response data, also called observation data, is in {\tt obs-train.txt} and {\tt obs-test.txt}.  Each file has six columns:
+\parahead{Observation Data}
+The observation data, also called response data, is in {\tt obs-train.txt} and {\tt obs-test.txt}.  Each file has six columns:
 \begin{enumerate}
 \item {\tt src\_id}: Source node ID (e.g., user $i$).
 \item {\tt dst\_id}: Destination node ID (e.g., item $j$).
-\item {\tt src\_context}: Source context ID (e.g., source context $p$), an optional column.
-\item {\tt dst\_context}: Destination context ID (e.g., destination context $q$), an optional column.
-\item {\tt ctx\_id}: Edge context ID (e.g., edge context $k$), an optional column.
+\item {\tt src\_context}: Source context ID (e.g., source context $p$).  This is an optional column.
+\item {\tt dst\_context}: Destination context ID (e.g., destination context $q$).  This is an optional column.
+\item {\tt ctx\_id}: Edge context ID (e.g., edge context $k$).  This is an optional column.
 \item {\tt y}: Response (e.g., the rating that user $i$ gives item $j$ in context $(k,p,q)$).
 \end{enumerate}
 Note that all of the above IDs can be numbers or character strings.
@@ -130,16 +131,20 @@ To read {\tt obs-train.txt}, run the following commands in R.
   "dst_context", "ctx_id", "y");
 \end{verbatim}
 }
-It is important to note that the {\bf column names} of an observation table have to be exactly {\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context}, {\tt ctx\_id} and {\tt y}. The model fitting code does not recognize other names. Also, note that {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id} are optional columns, i.e. a data with only 3 columns: {\tt src\_id}, {\tt dst\_id}, and {\tt y} still run and the model actually becomes the RLFM model introduced in \cite{rlfm:kdd09}. 
+It is important to note that the {\bf column names} of an observation table have to be exactly {\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context}, {\tt ctx\_id} and {\tt y}.  The model fitting code looks for these column names to setup internal data structures (instead of the order of columns; i.e., {\tt src\_id} does not need to be the first column), and it does not recognize other columns names.  Also, note that {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id} are optional columns.  When these columns are missing, a reduced model without context-specific factors will be fitted.  For example, an observation table with only 3 columns: {\tt src\_id}, {\tt dst\_id}, and {\tt y} will setup the fitting procedure to fit the RLFM model introduced in \cite{rlfm:kdd09}; i.e.,
+$$
+y_{ij} \sim \bm{x}'_{ij} \bm{b} + \alpha_{i} + \beta_{j} + \bm{u}'_i \bm{v}_j,
+$$
+since $k$, $p$ and $q$ are missing.
 
 \parahead{Source, Destination and Context Features}
-The feature vectors of source nodes ($\bm{x}_i$), destination nodes ($\bm{x}_j$), edge contexts ($\bm{x}_k$) and training and test observations ($\bm{x}_{ijk}$) are in \\
+The feature vectors of source nodes ($\bm{x}_i$), destination nodes ($\bm{x}_j$) and edge contexts ($\bm{x}_k$) are in \\
 \indent{\tt {\it type}-feature-user.txt}, \\
 \indent{\tt {\it type}-feature-item.txt}, \\
 \indent{\tt {\it type}-feature-ctxt.txt}, \\
 where {\it type} = {\tt "dense"} for the dense format and {\it type} = {\tt "sparse"} for the sparse format.
 
-For the dense format, take {\tt dense-feature-user.txt} for example.  The first column is {\tt src\_id} (the {\tt src\_id} column in the observation table refers to this column to get the feature vector of the source node for each observation).  It is important to note that the {\bf name of the first column} has to be exactly {\tt src\_id}.  The rest of the columns specify the feature values and the column names can be arbitrary.
+For the dense format, take {\tt dense-feature-user.txt} for example.  The first column is {\tt src\_id} (the {\tt src\_id} column in the observation table refers to this column to get the feature vector of the source node for each observation).  It is important to note that, after reading this table into R, the {\bf name of the first column} has to be set to {\tt src\_id} exactly.  The rest of the columns specify the feature values and the column names can be arbitrary.
 
 For the sparse format, take {\tt sparse-feature-user.txt} for example.  It has three columns:
 \begin{enumerate}
@@ -147,7 +152,7 @@ For the sparse format, take {\tt sparse-feature-user.txt} for example.  It has t
 \item {\tt index}: Feature index (starting from 1, not 0)
 \item {\tt value}: Feature value
 \end{enumerate}
-It is important to note that the {\bf column names} have to be exactly {\tt src\_id}, {\tt index} and {\tt value}.
+It is important to note that, after reading this table into R, the {\bf column names} have to be set to {\tt src\_id}, {\tt index} and {\tt value} exactly.  The following example shows the correspondence between the sparse and dense formats.
 {\small\begin{verbatim}
     sparse-feature-user.txt      dense-feature-user.txt
     SPARSE FORMAT           <=>  DENSE FORMAT
@@ -170,7 +175,7 @@ For the sparse format, take {\tt sparse-feature-obs-train.txt} for example.  It 
 \item {\tt index}: Feature index (starting from 1, not 0)
 \item {\tt value}: Feature value
 \end{enumerate}
-It is important to note that the {\bf column names} have to be exactly {\tt src\_id}, {\tt index} and {\tt value}.
+It is important to note that, after reading this table into R, the {\bf column names} have to be set to {\tt src\_id}, {\tt index} and {\tt value} exactly.  An example is presented in the following.
 {\small\begin{verbatim}
   obs_id  index  value   # MEANING
        9      1   0.14   # 1st feature of line  9 in obs-train.txt = 0.14
@@ -338,39 +343,6 @@ In this example, the output directories of the two models specified in the {\tt 
 \end{verbatim}}
 If {\tt out.level=1}, the fitted models are stored in files {\tt model.last} and {\tt model.minTestLoss} in the output directories, where {\tt model.last} contains the model obtained at the end of the last EM iteration and {\tt model.minTestLoss} contains the model at the end of the EM iteration that gives the minimum loss on the test observation.  {\tt model.minTestLoss} exists only when {\tt test.obs} is not {\tt NULL}.  If the fitting procedure stops (e.g., the machine reboots) before it finishes all the EM iteration, the latest fitted models will still be saved in these two files.  If {\tt out.level=2}, the model at the end of the $m$th EM iteration will be saved in {\tt model.$m$} for each $m$.  We describe how to read the output in Section~\ref{sec:model-output}.
 \end{itemize}
-
-\subsection{Output}
-\label{sec:model-output}
-
-The two main output files in an output directory are {\tt summary} and {\tt model.last}.
-
-\parahead{Summary File}
-It records a number of statistics for each EM iteration.  To read a summary file, use the following R command.
-{\small\begin{verbatim}
-read.table(paste(out.dir,"_uvw2/summary",sep=""), header=TRUE);
-\end{verbatim}}
-\noindent Explanation of the columns are in the following:
-\begin{itemize}
-\item {\tt Iter} specifies the iteration number.
-\item {\tt nSteps} records the number of Gibbs samples drawn in the E-step of that iteration.
-\item {\tt CDlogL}, {\tt TestLoss}, {\tt LossInTrain} and {\tt TestRMSE} record the complete data log likelihood, loss on the test data, loss on the training data and RMSE (root mean squared error) on the test data for the model at the end of that iteration.  For the Gaussian response model, the loss is defined as RMSE.  For the logistic response model, the loss is defined as negative average log likelihood per observation.
-\item {\tt TimeEStep}, {\tt TimeMStep} and {\tt TimeTest} record the numbers of seconds used to compute the E-step, M-step and predictions on test data in that iteration.
-\end{itemize}
-
-\parahead{Sanity Check}
-\begin{itemize}
-\item Check {\tt CDlogL} to see whether it increases sharply during the first few iterations and then oscillates at the end.
-\item Check {\tt TestLoss} to see whether it converges.  If not, more EM iterations are needed.
-\item Check {\tt TestLoss} and {\tt LossInTrain} to see whether the model overfits the data; i.e., TestLoss goes up, while LossInTrain goes down.  If so, try to simplify the model by reducing the number of factors and parameters.
-\end{itemize}
-You can monitor the summary file when the code is running.  When you see {\tt TestLoss} converges, kill the running process.
-
-\parahead{Model File}
-The fitted models are saved in {\tt model.last} and {\tt model.minTestLoss}, which are R data binary files.  To load the models, run the following command.
-{\small\begin{verbatim}
-load(paste(out.dir,"_uvw2/model.last",sep=""));
-\end{verbatim}}
-\noindent After loading, the fitted prior parameters are in object {\tt param} and the fitted latent factors are in object {\tt factor}.  Also, the object {\tt data.train} contains the ID mappings described in Step~2 of Section~\ref{sec:fitting} that are needed when you need to index a new test dataset.  Notice that {\tt data.train} does not contain actual data, but just meta information.
 
 \subsection{Prediction}
 
