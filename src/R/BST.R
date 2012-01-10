@@ -25,29 +25,29 @@ fit.bst <- function(
   if (code.dir!="") code.dir = sprintf("%s/",code.dir);
   #if (out.dir!="") out.dir = sprintf("%s/",out.dir);
   
-  if (floor(nIter)!=nIter || nIter<=0 || length(nIter)>1) stop("nIter must be a positive integer scalar!");
-  if (floor(nSamplesPerIter)!=nSamplesPerIter || nSamplesPerIter<=0 || length(nSamplesPerIter)>1) stop("nSamplesPerIter must be a positive integer scalar!");
+  if (floor(nIter)!=nIter || nIter<=0 || length(nIter)>1) stop("When calling fit.bst, nIter must be a positive integer scalar!");
+  if (floor(nSamplesPerIter)!=nSamplesPerIter || nSamplesPerIter<=0 || length(nSamplesPerIter)>1) stop("When calling fit.bst, nSamplesPerIter must be a positive integer scalar!");
 
   # Load all the required libraries and source code  
-  if (class(try(load.code(code.dir)))=="try-error") stop("Wrong code.dir. Please double check where the code is installed."); 
+  if (class(try(load.code(code.dir)))=="try-error") stop("When calling fit.bst, code.dir is not specified correctly. code.dir must be the path of the top-level directory of this package (which contains src/ as a sub-directory and file LICENSE)."); 
   
   # Make sure all the data have required columns
-  if (is.null(obs.train$src_id) || is.null(obs.train$dst_id) || is.null(obs.train$y)) stop("obs.train must have src_id, dst_id, and response y");
+  if (is.null(obs.train$src_id) || is.null(obs.train$dst_id) || is.null(obs.train$y)) stop("When calling fit.bst, obs.train must have the following three columns: src_id, dst_id, y");
   if (!is.null(obs.test)) {
-    if (is.null(obs.test$src_id) || is.null(obs.test$dst_id) || is.null(obs.test$y)) stop("obs.test must have src_id, dst_id, and response y");
+    if (is.null(obs.test$src_id) || is.null(obs.test$dst_id) || is.null(obs.test$y)) stop("When calling fit.bst, obs.test must have the following three columns: src_id, dst_id, y");
   }
 
-  if (is.null(x_obs.train) && !is.null(x_obs.test)) stop("x_obs.train does not exist while x_obs.test is used!");
-  if (is.null(x_obs.test) && !is.null(x_obs.train) && !is.null(obs.test)) stop("x_obs.test does not exist while x_obs.train is used!");
+  if (is.null(x_obs.train) && !is.null(x_obs.test)) stop("When calling fit.bst, x_obs.train does not exist while x_obs.test is used!  Either set both to NULL or supply both observation feature tables.");
+  if (is.null(x_obs.test) && !is.null(x_obs.train) && !is.null(obs.test)) stop("When calling fit.bst, x_obs.test does not exist while x_obs.train is used!  Either set both to NULL or supply both observation feature tables.");
   if (!is.null(x_obs.train) && !is.null(x_obs.test)) {
-    if (ncol(x_obs.train)!=ncol(x_obs.test)) stop("ncol(x_obs.train)!=ncol(x_obs.test)! The number of features for training and test should be exactly the same!");
+    if (ncol(x_obs.train)!=ncol(x_obs.test)) stop("When calling fit.bst, x_obs.train and x_obs.test have different numbers of columns!  The number of features for training and test cases should be exactly the same!");
   }
   # Index data: Put the input data into the right form
   # Convert IDs into numeric indices and
   # Convert some data frames into matrices
   # Index training data
-  if (length(src.dst.same)!=1) stop("src.dst.same must be a scalar boolean!");
-  if (src.dst.same!=0 && src.dst.same!=1) stop("src.dst.name must be boolean!");
+  if (length(src.dst.same)!=1) stop("When calling fit.bst, src.dst.same must be a scalar boolean!");
+  if (src.dst.same!=0 && src.dst.same!=1) stop("When calling fit.bst, src.dst.name must be boolean!");
   data.train = indexData(
                 obs=obs.train, src.dst.same=src.dst.same, rm.self.link=control$rm.self.link,
                 x_obs=x_obs.train, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
@@ -71,14 +71,14 @@ fit.bst <- function(
   if (length(nFactors)==1) nFactors = rep(nFactors, length(model.name));
   if (length(control$has.gamma)==1) control$has.gamma = rep(control$has.gamma,length(model.name));
   if (length(is.logistic)==1) is.logistic = rep(is.logistic,length(model.name));
-  if (length(model.name)!=length(nFactors)) stop("length(model.name)!=length(nFactors)");
-  if (length(model.name)!=length(control$has.gamma)) stop("length(model.name)!=length(control$has.gamma)");
-  if (length(model.name)!=length(is.logistic)) stop("length(model.name)!=length(is.logistic)");
+  if (length(model.name)!=length(nFactors)) stop("When calling fit.bst, model.name and nFactors must have the same length.");
+  if (length(model.name)!=length(control$has.gamma)) stop("When calling fit.bst, model.name and control$has.gamma must have the same length.");
+  if (length(model.name)!=length(is.logistic)) stop("When calling fit.bst, model.name and is.logistic must have the same length");
   for (i in 1:length(is.logistic))
   {
-        if (is.logistic[i]!=0 && is.logistic[i]!=1) stop("is.logistic must be boolean!");
-	if (is.logistic[i] && length(which(obs.train$y!=0 & obs.train$y!=1))>0) stop("Logistic link function should not be used for non-binary training data! Please set is.logistic=F");
-	if (is.logistic[i] && length(which(obs.test$y!=0 & obs.test$y!=1))>0) stop("Logistic link function should not be used for non-binary test data! Please set is.logistic=F");
+	if (is.logistic[i]!=0 && is.logistic[i]!=1) stop("When calling fit.bst, is.logistic must be boolean!");
+	if (is.logistic[i] && length(which(obs.train$y!=0 & obs.train$y!=1))>0) stop("When calling fit.bst, logistic link function should not be used for non-binary training data! Please set is.logistic=FALSE");
+	if (is.logistic[i] && length(which(obs.test$y!=0 & obs.test$y!=1))>0) stop("When calling fit.bst, logistic link function should not be used for non-binary test data! Please set is.logistic=FALSE");
   }
 
   setting = data.frame(
@@ -166,8 +166,8 @@ fit.bst.control <- function (
 	rm.self.link = FALSE, # Allow Self link?
 	add.intercept = TRUE, # Whether to add intercept to each feature matrix
 	has.gamma = NULL, # Whether to include context main effect into the model, can be a vector, but length must be equal to the number of model names
-        reg.algo=NULL,     # The regression algorithm to be used in the M-step (NULL => linear regression), "GLMNet", or "RandomForest"
-        reg.control=NULL,  # The control paramter for reg.algo
+	reg.algo=NULL,     # The regression algorithm to be used in the M-step (NULL => linear regression), "GLMNet", or "RandomForest"
+	reg.control=NULL,  # The control paramter for reg.algo
 	nBurnin = NULL, # Default is 10% of the nSamplesPerIter
 	init.params = list(var_alpha=1, var_beta=1, var_gamma=1,
                 var_u=1, var_v=1, var_w=1, var_y=NULL,
@@ -175,21 +175,21 @@ fit.bst.control <- function (
 	random.seed = 0, # The random seed
 	...
 ) {
-  if (length(rm.self.link)!=1) stop("rm.self.link must be a scalar boolean!");
-  if (length(add.intercept)!=1) stop("add.intercept must be a scalar boolean!");
-  if (rm.self.link!=0 && rm.self.link!=1) stop("rm.self.link must be boolean!");
-  if (add.intercept!=0 && add.intercept!=1) stop("add.intercept must be boolean!");
+  if (length(rm.self.link)!=1) stop("When calling fit.bst, rm.self.link in control=fit.bst.control(..., rm.self.link, ...) must be a scalar boolean!");
+  if (length(add.intercept)!=1) stop("When calling fit.bst, add.intercept in control=fit.bst.control(..., add.intercept, ...) must be a scalar boolean!");
+  if (rm.self.link!=0 && rm.self.link!=1) stop("When calling fit.bst, rm.self.link in control=fit.bst.control(..., rm.self.link, ...) must be boolean!");
+  if (add.intercept!=0 && add.intercept!=1) stop("When calling fit.bst, add.intercept in control=fit.bst.control(..., add.intercept, ...) must be boolean!");
   if (!is.null(has.gamma)) {
     for (i in 1:length(has.gamma)) 
     {
-    	if (has.gamma[i]!=0 && has.gamma[i]!=1) stop("has.gamma must be boolean!");
+    	if (has.gamma[i]!=0 && has.gamma[i]!=1) stop("When calling fit.bst, has.gamma in control=fit.bst.control(..., has.gamma, ...) must be boolean!");
     }
   }
   if (!is.null(reg.algo)) {
-     if (reg.algo!="GLMNet" && reg.algo!="RandomForest") stop("reg.algo must be NULL, GLMNet, or RandomForest. Make sure they are strings.");
+     if (reg.algo!="GLMNet" && reg.algo!="RandomForest") stop("When calling fit.bst, reg.algo in control=fit.bst.control(..., reg.algo, ...) must be NULL, 'GLMNet', or 'RandomForest'.  Make sure they are strings if not NULL.");
   }
   if (!is.null(nBurnin)) {
-     if (nBurnin<0 || floor(nBurnin)!=nBurnin || length(nBurnin)>1) stop("nBurnin must be a positive integer");
+     if (nBurnin<0 || floor(nBurnin)!=nBurnin || length(nBurnin)>1) stop("When calling fit.bst, nBurnin in control=fit.bst.control(..., nBurnin, ...) must be a positive integer");
   }
   list(rm.self.link=rm.self.link,add.intercept=add.intercept, has.gamma=has.gamma, reg.algo=reg.algo, reg.control=reg.control, nBurnin=nBurnin, init.params=init.params, random.seed=random.seed)
 }
@@ -206,14 +206,14 @@ predict.bst <- function(
 	library(Matrix);
 	if (code.dir!="") code.dir = sprintf("%s/",code.dir);
 	# Load all the required libraries and source code  
-	if (class(try(load.code(code.dir)))=="try-error") stop("Wrong code.dir. Please double check where the code is installed."); 
+	if (class(try(load.code(code.dir)))=="try-error") stop("When calling predict.bst, code.dir is not specified correctly. code.dir must be the path of the top-level directory of this package (which contains src/ as a sub-directory and file LICENSE)."); 
 	
-	if(!file.exists(model.file)) stop("The specified model.file='",model.file,"' does not exist.  Please specify an existing model file.");
+	if(!file.exists(model.file)) stop("When calling predict.bst, the file specified by model.file='",model.file,"' does not exist.  Please specify an existing model file.");
 	if("factor" %in% ls()) rm(factor);
 	if("param"  %in% ls()) rm(param);
 	if("data.train" %in% ls()) rm(data.train);
 	load(model.file);
-	if(!all(c("factor", "param", "data.train") %in% ls())) stop("Some problem with model.file='",model.file,"': The file is not a model file or is corrupted.");
+	if(!all(c("factor", "param", "data.train") %in% ls())) stop("When calling predict.bst, some problem with model.file='",model.file,"': The file is not a model file or is corrupted.");
 	data.test = indexTestData(
 			data.train=data.train, obs=obs.test,
 			x_obs=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx
