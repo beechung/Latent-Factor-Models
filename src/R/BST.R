@@ -200,8 +200,14 @@ predict.bst <- function(
 	x_obs.test = NULL, # The data of testing observation features
 	x_src = NULL, # The data of context features for source nodes
 	x_dst = NULL, # The data of context features for destination nodes
-	x_ctx = NULL  # The data of context features for edges	
-){
+	x_ctx = NULL, # The data of context features for edges	
+	code.dir = "" # The top-level directory of where code get installed, "" if you are in that directory
+){  
+	library(Matrix);
+	if (code.dir!="") code.dir = sprintf("%s/",code.dir);
+	# Load all the required libraries and source code  
+	if (class(try(load.code(code.dir)))=="try-error") stop("Wrong code.dir. Please double check where the code is installed."); 
+	
 	if(!file.exists(model.file)) stop("The specified model.file='",model.file,"' does not exist.  Please specify an existing model file.");
 	if("factor" %in% ls()) rm(factor);
 	if("param"  %in% ls()) rm(param);

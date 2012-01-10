@@ -185,41 +185,25 @@ It is important to note that, after reading this table into R, the {\bf column n
 
 \input{quick-start}
 
-\subsection{Model Fitting Details}
+\bibliographystyle{abbrv}
+\bibliography{references}
+
+\appendix
+
+\section{BST Model Fitting Details}
 \label{sec:fitting}
-In this section we do a deep-dive of this package by trying to avoid the wrapper function {\tt fit.bst}; hence it includes more details and insights of how to use this package to fit your own problems. All the R code written in this section can be 
-seen in Example 1 in {\tt src/R/examples/tutorial-BST.R}.  For succinctness, we ignore some R commands in the following description.
 
-\parahead{Step 1} Read all the data sets in the same way as described in Step 1 in Section \ref{sec:bst-quick-start}.
+In this section, we provide more details of how BST models are fitted.  In fact, we will fit BST models without using the wrapper function {\tt fit.bst}; hence, it may give insights on how to use this package in your problem settings.  All the R code written in this section can be 
+found in Appendix Example 1 in {\tt src/R/examples/tutorial-BST.R}.  For succinctness, we ignore some R commands in the following description.
 
-\begin{comment}
-Read training and test observation tables ({\tt obs.train} and {\tt obs.test}), their corresponding observation feature tables ({\tt x\_obs.train} and {\tt x\_obs.test}), the source feature table ({\tt x\_src}), the destination feature table ({\tt x\_dst}) and the edge context feature table ({\tt x\_ctx}) from the corresponding files.  Note that if you replace these tables with your data, you must not change the column names.
-{\small\begin{verbatim}
-input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
-            sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
-                     "dst_context", "ctx_id", "y");
-x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
-              sep=""), sep="\t", header=FALSE, as.is=TRUE);
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
-           sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
-                    "dst_context", "ctx_id", "y");
-x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
-             sep=""), sep="\t", header=FALSE, as.is=TRUE);
-x_src = read.table(paste(input.dir,"/dense-feature-user.txt",sep=""),
-        sep="\t", header=FALSE, as.is=TRUE);
-names(x_src)[1] = "src_id";
-x_dst = read.table(paste(input.dir,"/dense-feature-item.txt",sep=""),
-        sep="\t", header=FALSE, as.is=TRUE);
-names(x_dst)[1] = "dst_id";
-x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
-        sep="\t", header=FALSE, as.is=TRUE);
-names(x_ctx)[1] = "ctx_id";
-\end{verbatim}}
-\end{comment}
-\parahead{Step 2} Index the training and test data.  Functions {\tt indexData} and {\tt indexTestData} (defined in {\tt rc/R/model/multicontext\_model\_utils.R}) convert the input data tables into the right data structure.  In particular, they replace the original IDs ({\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id}) by consecutive index numbers, and convert feature tables (data frames) into feature matrices.
+\subsection{Read Data}
+
+Read all the data sets in the same way as described in Section \ref{sec:read-data}.
+
+\subsection{Index Data}
+\label{sec:index-data}
+
+Index the training and test data.  Functions {\tt indexData} and {\tt indexTestData} (defined in {\tt rc/R/model/multicontext\_model\_utils.R}) convert the input data tables into the right data structure.  In particular, they replace the original IDs ({\tt src\_id}, {\tt dst\_id}, {\tt src\_context}, {\tt dst\_context} and {\tt ctx\_id}) by consecutive index numbers, and convert feature tables (data frames) into feature matrices.
 {\small\begin{verbatim}
 data.train = indexData(
     obs=obs.train, src.dst.same=FALSE, rm.self.link=FALSE,
@@ -256,7 +240,8 @@ src.id & dst.id & src.context & dst.context & edge.context & y \\
 \item {\tt data.train\$feature\$x\_obs[$m$,]} is the observation feature vector of this observation.  Similarly, {\tt x\_src[$i$,]}, {\tt x\_dst[$j$,]} and {\tt x\_ctx[$k$,]} are the feature vectors of the source node, destination node and edge context of this observation.
 \end{itemize}
 
-\parahead{Step 3}
+\subsection{Model Setting}
+
 Fit the model(s).  We first specify the settings of the models to be fitted.
 {\small\begin{verbatim}
 setting = data.frame(
@@ -295,14 +280,15 @@ obs.train$src_context = obs.train$dst_context = obs.train$ctx_id = NULL;
 obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id  = NULL;
 x_ctx = NULL;
 \end{verbatim}}
-This setting gives the following model:
+\noindent This setting gives the following model:
 $$
 y_{ij} \sim \bm{x}'_{ij} \bm{b} + \alpha_{i} + \beta_{j} + \bm{u}'_i \bm{v}_j
 $$
 Notice that setting the context-related objects to {\tt NULL} disables the context-specific factors in the model.
 \end{itemize}
 
-\parahead{Step 4}
+\subsection{Modeling Fitting}
+
 Run the model fitting procedure.
 {\small\begin{verbatim}
 out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K";
@@ -370,9 +356,5 @@ In {\tt src/R/examples/tutorial-BST.R}, we also provide a number of additional e
 \item Example 3: In this example, we demonstrate how to add more EM iterations to an already fitted model.
 \item Example 4: In this example, we demonstrate how to fit RLFM models with sparse features and the glmnet algorithm.  Note that RLFM models do not fit this toy dataset well.
 \end{itemize}
-
-
-\bibliographystyle{abbrv}
-\bibliography{references}
 
 \end{document}

@@ -281,7 +281,7 @@ syncheck.multicontext.spec <- function(
 		feature.name.allowed  = c(),
 		param.name.required = c("b", "g0", "d0", "var_y", "var_alpha", "var_beta"),
 	    param.name.optional = c("h0", "G", "D", "H", "q", "r", "var_alpha_global","var_beta_global", "var_gamma", "var_u", "var_v", "var_w"),
-		param.name.allowed  = c("nLocalFactors", "approx.interaction", "xi", "reg.algo", "reg.control")
+		param.name.allowed  = c("nLocalFactors", "approx.interaction", "xi", "reg.algo", "reg.control", "is.logistic")
 ){
 	factor.name.all = c(factor.name.required, factor.name.optional, factor.name.allowed);
 	obs.name.all = c(obs.name.required, obs.name.optional, obs.name.allowed);

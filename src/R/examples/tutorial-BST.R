@@ -34,12 +34,12 @@ names(x_ctx)[1] = "ctx_id";
 source("src/R/BST.R");
 # (2.1) Fit a model without features
 ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
-		out.dir = "/tmp/bst/quick-start", model.name="uvw3", 
+		out.dir="/tmp/bst/quick-start", model.name="uvw3", 
 		nFactors=3, nIter=10);
 # (2.2) Fit a model with features
 ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
 		x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-		out.dir = "/tmp/bst/quick-start", 
+		out.dir="/tmp/bst/quick-start", 
 		model.name="uvw3-F", nFactors=3, nIter=10);
 
 # (3) Check the Output
@@ -52,17 +52,38 @@ str(factor);
 str(data.train);
 
 # (4) Make Predictions
-# (1.2) Test observations and observation features
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
-		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
-		"dst_context", "ctx_id", "y");
-x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
-				sep=""), sep="\t", header=FALSE, as.is=TRUE);
+pred = predict.bst(
+		model.file="/tmp/bst/quick-start_uvw3-F/model.last",
+		obs.test=obs.test, x_obs.test=x_obs.test,
+		x_src=x_src, x_dst=x_dst, x_ctx=x_ctx);
 
+# Fit Multiple Models in One Call
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+		x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+		out.dir = "/tmp/bst/quick-start", 
+		model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
+
+# Fit the Original BST Model
+obs.train$src_context = obs.train$dst_context = obs.train$ctx_id
+obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test,
+		x_obs.train=x_obs.train, x_obs.test=x_obs.test, 
+		x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+		out.dir="/tmp/bst/quick-start", model.name="original-bst", 
+		nFactors=3, nIter=10, src.dst.same=TRUE,
+		control=fit.bst.control(has.gamma=FALSE, rm.self.link=TRUE));
+
+# Fit RLFM
+obs.train$src_context = obs.train$dst_context = obs.train$ctx_id = NULL;
+obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id  = NULL;
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
+		x_obs.train=x_obs.train, x_obs.test=x_obs.test, 
+		x_src=x_src, x_dst=x_dst,
+		out.dir="/tmp/bst/quick-start", model.name="uvw3-F", 
+		nFactors=3, nIter=10);
 
 ###
-### Example 1: Fit the BST model with dense features
+### Appendix Example 1: Fit the BST model with dense features
 ###
 library(Matrix);
 dyn.load("lib/c_funcs.so");
@@ -182,8 +203,9 @@ str(pred);
 
 
 ###
-### Example 2: Fit the BST model with sparse features
-###            glmnet is used to fit prior regression parameters
+### Appendix Example 2:
+###    Fit the BST model with sparse features
+###    glmnet is used to fit prior regression parameters
 ###
 library(Matrix);
 dyn.load("lib/c_funcs.so");
@@ -288,7 +310,7 @@ ans = run.multicontext(
 
 
 ###
-### Example 3: Add more EM iterations to an already fitted model
+### Appendix Example 3: Add more EM iterations to an already fitted model
 ###
 ###   Example scenario: After running Example 2 with 10 EM iterations,
 ###   you feel that the model has not yet converged and want to add
@@ -393,8 +415,9 @@ str(param, max.level=2);
 str(factor);
 
 ###
-### Example 4: Fit the RLFM model with sparse features
-###            glmnet is used to fit prior regression parameters
+### Appendix Example 4:
+###    Fit the RLFM model with sparse features
+###    glmnet is used to fit prior regression parameters
 ###
 library(Matrix);
 dyn.load("lib/c_funcs.so");
@@ -500,10 +523,11 @@ ans = run.multicontext(
 
 
 ###
-### Example 5: Fit the BST model with dense features
-###            Do not give the test data to the fitting procedure,
-###            and then later load the test data, index it (in the correct way)
-###            and predict the response in the test data.
+### Appendix Example 5:
+###    Fit the BST model with dense features
+###    Do not give the test data to the fitting procedure,
+###    and then later load the test data, index it (in the correct way)
+###    and predict the response in the test data.
 ###
 library(Matrix);
 dyn.load("lib/c_funcs.so");
