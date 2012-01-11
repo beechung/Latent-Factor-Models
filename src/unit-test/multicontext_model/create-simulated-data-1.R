@@ -1,3 +1,7 @@
+### Copyright (c) 2011, Yahoo! Inc.  All rights reserved.
+### Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
+### 
+### Author: Bee-Chung Chen
 
 ###
 ### Create a small test data for the multi-context model
