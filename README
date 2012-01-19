@@ -13,19 +13,21 @@ I. Introduction
    computationally intensive parts are written in C/C++. The models and 
    algorithms have been described in the following papers.
    
-   [1] Bee-Chung Chen, Jian Guo, Belle Tseng, Jie Yang: User reputation in a
+   [1] Bee-Chung Chen, Jian Guo, Belle Tseng, Jie Yang. User reputation in a
        comment rating environment. KDD 2011.
-   [2] Deepak Agarwal, Bee-Chung Chen: Regression-based latent factor models.
+   [2] Deepak Agarwal, Bee-Chung Chen. Regression-based latent factor models.
        KDD 2009.
-   [3] Deepak Agarwal, Bee-Chung Chen, Bo Long: Localized factor models for 
+   [3] Deepak Agarwal, Bee-Chung Chen, Bo Long. Localized factor models for 
        multi-context recommendation. KDD 2011.
-   [4] Deepak Agarwal, Bee-Chung Chen: Latent OLAP: data cubes over latent 
+   [4] Deepak Agarwal, Bee-Chung Chen. Latent OLAP: Data cubes over latent 
        variables. SIGMOD Conference 2011.
+   [5] Deepak Agarwal, Bee-Chung Chen. fLDA: Matrix factorization through 
+       latent Dirichlet allocation. WSDM 2010.
        
 II. Tutorial
 
    See doc/tutorial.pdf for a tutorial on how to use this package to fit
-   latent factor models.
+   the latent factor models described in [1,2].
 
 III. Compilation
 
@@ -42,6 +44,9 @@ III. Compilation
 
 IV. Examples
 
-   See: src/R/examples/multicontext_model.R
+   Localized factor model (multi-context, multi-application factorization) [2]:
         src/multi-app/R/example/fitting.R
-        
+
+   fLDA model (LDA topic modeling + Matrix factorization) [5]:
+        src/LDA-RLFM/R/model/examples.R
+   

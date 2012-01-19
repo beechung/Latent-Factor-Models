@@ -1,0 +1,116 @@
+
+The following naming convention is used:
+
+  OBSERVED DATA
+
+    obs     = data.frame(user, item, y);
+    feature = list(x_user, x_item, x_dyad);
+    corpus  = data.frame(item, term, weight);
+    
+    (obs$user[k], obs$item[k], y[k], x_dyad[k,]) is the kth dyadic observation
+        with rating y[k] and dyadic feature vector x_dyad[k,]
+        obs$user[k] in {1, ..., nUsers} is the user ID of the kth observation
+        obs$item[k] in {1, ..., nItems} is the item ID of the kth observation
+        
+        obs$user: nObs x 1                 (integer)
+        obs$item: nObs x 1                 (integer)
+               y: nObs x 1                 (double)
+          x_dyad: nObs x nDyadicFeatures   (double)
+    
+    x_user[i,] is the feature vector of user i
+    x_item[j,] is the feature vector of item j
+
+        x_user: nUsers x nUserFeatures    (double)
+        x_item: nItems x nItemFeatures    (double)
+    
+        Note that x_user[obs$user[k],] and x_item[obs$item[k],] are the feature vectors for the kth pair.
+    
+    (corpus$item[k], corpus$term[k], corpus$weight[k]) describe the kth observed (item, term) pair in the corpus.
+        corpus$item[k] in {1, ..., nItems} is the item ID of the kth observation
+        corpus$term[k] in {1, ..., nTerms} is the term ID of the kth observation
+        corpus$weight[k] is the weight of this term appearing in this item
+    
+        corpus$item: corpusSize x 1   (integer)
+        corpus$term: corpusSize x 1   (integer)
+      corpus$weight: corpusSize x 1   (double)
+    
+  LATENT FACTORS
+    
+    factor = list(alpha, beta, gamma, u, v, s, z_avg, corpus_topic);
+    
+    alpha[i] is the main effect of user i
+     beta[j] is the main effect of item j
+    gamma[i] is the per-user adjustment term for user i (can be just ignored)
+       u[i,] is the factor vector of user i
+       v[j,] is the factor vector of item j
+
+        alpha: nUsers x 1             (double)
+         beta: nItems x 1             (double)
+        gamma: nUsers x 1             (double)
+            u: nUsers x nUserFactors  (double)
+            v: nItems x nItemFactors  (double)
+    
+    corpus_topic[k] is the topic of the kth observation in the corpus.
+        corpus_topic[k] is the topic for (corpus$item[k], corpus$term[k], corpus$weight[k]).
+
+        corpus_topic: corpusSize x 1  (integer)
+        
+    z_avg[j,] is the topic distribution of item j. z_avg[j,k] is the impirical probability that item j is about topic k.
+            Initially,
+              z_avg[j,k] = sum(corpus$weight[corpus$item == j && corpus_topic == k]) / sum(corpus$weight[corpus$item == j]).
+            After each E-step:
+              z_avg[j,k] = E[sum(corpus$weight[corpus$item == j && corpus_topic == k]) / sum(corpus$weight[corpus$item == j])],
+                           which is the Monte-Carlo.
+    s[i,] is the topic affinity vector of user i. s[i,k] represents the degree that user i likes topic k.
+       
+        z_avg: nItems x nTopics  (double)
+            s: nUsers x nTopics  (double)
+
+  PARAMETER VECTORS AND MATRICES
+    
+    param = list(b, g0, d0, c0, G, D, H, var_y, var_alpha, var_beta, var_gamma, var_u, var_v, var_s, lambda, eta);
+    
+        b:  nDyadicFeatures x 1             (double)
+        c0: nUserFeatures   x 1             (double)
+        g0: nUserFeatures   x 1             (double)
+        d0: nItemFeatures   x 1             (double)
+        G:  nUserFeatures   x nUserFactors  (double)
+        H:  nUserFeatures   x nTopics       (double)
+        D:  nItemFeatures   x nItemFactors  (double)
+    
+        var_y:     1x1  or  nObs x 1                        (double)
+        var_alpha: 1x1  or  nUsers x 1                      (double)
+        var_beta:  1x1  or  nItems x 1                      (double) 
+        var_gamma: 1x1  or  nUsers x 1                      (double)
+        var_u:     1x1  or  nUsers x nFactors x nFactors    (double)
+        var_v:     1x1  or  nItems x nFactors x nFactors    (double)
+        var_s:     1x1  or  nUsers x nTopics  x nTopics     (double)
+        lambda:    1x1                                      (double)
+        eta:       1x1                                      (double)
+
+###########################
+#   Model Specification   #
+###########################
+
+  k: index for dyadic observations
+  i: index for users
+  j: index for items
+
+  y[k] ~ N(mean = sum(x_dyad[k,] * b) * gamma[obs$user[k]] + 
+                  alpha[obs$user[k]] + beta[obs$item[k]] + 
+                  sum(u[obs$user[k],] * v[obs$item[k],]) +
+                  sum(s[obs$user[k],] * z_avg[obs$item[k],]),
+           var = var_y)
+
+    alpha[i] ~ N(sum(g0 * x_user[i,]),    var_alpha)
+    gamma[i] ~ N(sum(c0 * x_user[i,]),    var_gamma)
+     beta[j] ~ N(sum(d0 * x_item[j,]),    var_beta)
+      u[i,f] ~ N(sum(G[,f] * x_user[i,]), var_u)
+      v[j,f] ~ N(sum(D[,f] * x_item[j,]), var_v)
+      s[i,f] ~ N(sum(H[,f] * x_user[i,]), var_s)
+  z_avg[j,t] = sum(corpus$weight[corpus$item == j && corpus_topic == t]) / sum(corpus$weight[corpus$item == j])
+  
+  corpus_topic[n] ~ Multinom(probability = theta[corpus$item[n], ])
+   corpus$term[n] ~ Multinom(probability =   phi[corpus_topic[n],])
+        theta[j,] ~ Dirichlet(rep(lambda, nTopics))   # Topic distribution of item j
+          phi[t,] ~ Dirichlet(rep(eta,    nTerms))    # Term/word distribution of topic t

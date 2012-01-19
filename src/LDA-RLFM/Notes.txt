@@ -1,0 +1,18 @@
+
+2009-08-09 Small numerical imprecision
+    sum(x) - x[1] - x[2] - ... - x[length(x)] may not be exactly zero.
+    cnt_item_topic, etc, can be NEGATIVE!!
+
+2009-08-09 Test MC_predict (C vs R)
+    Use Monte-Carlo mean to make prediction may get worse RMSE.
+        E.g., simulation with var_FACTOR = 0.01.
+    Because of small differences, the C eigenvector can be different from the R eigenvector (e.g., change in the sign).
+        This can cause the multivariate normal sample to be different (e.g., when drawing samples for u, v, or s).
+    C and R versions basically match (modulo the above eigenvector problem)
+
+2009-07-19 Test LDA-RLFM code vs. RLFM code
+    Case:  5 factors -> new code vs old code has error < 1e-12  (single EM)
+    Case: 10 factors -> new code vs old code may have max error ~ 0.8 in factors, max error ~0.03 in param (single EM)
+          Sometimes one has a higher CDlogLik; sometimes the other has a higher CDlogLik.
+    Old code when using MC_EStep.C  faster than new code (Exec time of old code is 1/2 to 2/3 of that of the new code)
+    Old code when using MC_EStep2.C as fast as new code

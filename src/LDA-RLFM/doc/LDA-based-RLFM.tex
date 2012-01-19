@@ -1,0 +1,23 @@
+\documentclass{article}
+
+\usepackage{epsfig,multirow,subfigure}
+\usepackage{amsmath,amssymb,theorem,float,crop,algorithmic,algorithm,bbm,bm}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+
+\newcommand {\commentout}[1] {}
+
+
+\begin{document}
+
+\title{LDA-based Regression Latent Factor Models}
+\author{Bee-Chung Chen and Deepak Agarwal}
+\maketitle
+
+Consider article recommendation, where articles consist of terms (words). LDA is an attractive model that summarizes terms into topics, which then provide a small set of interpretable features (reduced from the set of all terms to a small number of topics) for articles. In document, we explore the use of LDA in RLFM.
+
+\input{model}
+\input{fitting}
+
+\end{document}

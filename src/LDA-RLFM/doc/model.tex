@@ -1,0 +1,96 @@
+\section{Model}
+
+Let index $i$ runs through
+users, index $j$ runs through items, index $k$ runs through topics,
+and index $n$ runs through terms in an item. Let $M, N, K$ and $W$ denote
+the numbers of users, items, topics and distinct terms in the
+vocabulary, respectively. $W_j$ denotes the number of terms in item
+$j$ (with duplicate terms preserved). We also abuse the notation a
+little by letting $x_i$, $x_j$ and $x_{ij}$ denote the feature vectors
+for user $i$, item $j$ and the dyad $(i,j)$, respectively.
+The model is specified in the following table.\\
+
+\noindent
+\begin{tabular}{lllr}
+\hline 
+	\multicolumn{4}{c}{{\bf LDA-based Regression Latent Factor Model}} \\
+\hline 
+	\multicolumn{4}{c}{\vspace{-0.1in}} \\
+{\bf Rating:} &
+	\multicolumn{2}{l}{$y_{ij} \sim \mathcal{N}(m_{ij}, \sigma^2), \textrm{or}$
+	~~~ (Gaussian)} & \\
+	%~$[y_{ij} | X_{ij}, \delta_{ij}, \Theta_1]$
+ 	&
+	\multicolumn{2}{l}{$y_{ij} \sim \textrm{Bernoulli}(m_{ij})$
+	~~~~ (Logistic)} & \\
+	\vspace{0.07in}
+	& \multicolumn{2}{l}{
+	$l(m_{ij}) = (x_{ij}^{\prime}\, b) \gamma_i  + \alpha_i + \beta_j + 
+					 u_{i}^{\prime} \, v_{j} +
+					 s_{i}^{\prime} \, \bar{z}_{j}$
+	} &  \\ 
+{\bf User factors:}
+& 	$\alpha_i = g_{0}^{\prime}x_i + \epsilon_{i}^{\alpha}$,
+		& $\epsilon_{i}^{\alpha} \sim \mathcal{N}(0,a_{\alpha})$ &  \\
+& 	$\gamma_i = c_{0}^{\prime}x_i + \epsilon_{i}^{\gamma}$,
+		& $\epsilon_{i}^{\gamma} \sim \mathcal{N}(1,a_{\gamma})$ &  \\
+& 	$u_i = G x_i + \epsilon_{i}^{u}$,
+		& $\epsilon_{i}^{u} \sim \mathcal{N}(\bm{0},A_u)$ & \\
+& 	$s_i = H x_i + \epsilon_{i}^{s}$,
+		& $\epsilon_{i}^{s} \sim \mathcal{N}(\bm{0},A_s)$ & \vspace{0.07in} \\
+{\bf Item factors:}
+& 	$\beta_j = d_{0}^{\prime}x_j + \epsilon_{j}^{\beta}$,
+		& $\epsilon_{j}^{\beta} \sim \mathcal{N}(0,a_{\beta})$ & \\
+&  $v_j = D x_j + \epsilon_{j}^{v}$,
+	   & $\epsilon_{j}^{v} \sim \mathcal{N}(\bm{0},A_v)$ & \\
+& 	$\bar{z}_{j} = \sum_n z_{jn} ~/~ W_j$
+		& &  \vspace{0.07in}\\ 
+{\bf Topic model:}
+& 	$\theta_j \sim \textrm{Dirichlet}(\lambda)$
+		& (Topic distribution of item $j$) & \\
+& 	$\Phi_k \sim \textrm{Dirichlet}(\eta)$
+		& (Word distribution of topic $k$) & \\
+&  $z_{jn} \sim \textrm{Multinom}(\theta_j)$
+		& (Topic of the $n$th word in $j$) & \\ 
+&  $w_{jn} \sim \textrm{Multinom}(\Phi \, z_{jn})$
+		& ($n$th observed word in $j$) &  \vspace{0.07in}\\ \hline
+\end{tabular}
+\\
+
+\noindent {\bf Notes:}
+\begin{itemize}
+\item $y_{ij}$ is the observed rating given by user $i$ to item $j$.
+
+\item $l(m_{ij}) = m_{ij}$ for Gaussian; $l(m_{ij}) = \log\frac{m_{ij}}{1-m_{ij}}$ for Logistic.
+
+\item $x_{ij}$, $x_i$ and $x_j$ are the dyadic, user and item feature vectors for user $i$ and item $j$, respectively.
+
+\item $\alpha_i$ and $\beta_j$ are the main factors for user $i$ and item $j$, respectively, intuitively representing the ``default'' rating that user $i$ would give to a random item and the overall popularity of item $j$. $u_i$ and $v_j$ are latent-factor vectors. We call the length of a latent-factor vector the number of latent dimensions.
+
+\item $z_{jn}$ is a vector of zeros except for one position being one, which is the position representing the topic of the word. $\Phi = [\Phi_1, ..., \Phi_K]$ and $\Phi \, z_{jn} = \Phi_k$ such that $z_{jnk} = 1$. $\eta$ is a scalar for the symmetric Dirichlet prior, but $\lambda$ is a vector.
+
+\item $\bar{z}_j$ represents the probability distribution of topics in item $j$, and $s_i$ represents user $i$'s affinity to different topics. They are vectors of length equal to the number of topics. Notice that $x_{ij}$ may include TF/IDF similarity
+between the profile of user $i$ (e.g., top 200 entities in the items
+that user $i$ frequently clicks) and the text of item $j$, and other
+IR similarity measures between user $i$ and item $j$.  Thus,
+$s_{i}^{\prime} \, \bar{z}_{j}$ captures user $i$'s affinity to
+relatively coarse-grained topics, while $x_{ij}^{\prime}$ captures
+user $i$'s affinity to fine-grained topics/entities. $b$ quantifies
+how important each element of $x_{ij}$ is. For fine-grained
+topic affinity, this model does not try to fit regression coefficients
+because of data sparseness at fine granularities.
+
+\item $\gamma_i$ is a scaling factor that gives the relative
+importance of find-grained affinity $x_{ij}$ to coarse-grained
+affinity $s_{i}^{\prime} \, \bar{z}_{j}$. Intuitively, this relative
+importance should be different for different users. To prevent from
+adding too many factors (instead of replacing $b$ by $b_i$, which is a
+vector, for each user), we only add a single scaling factor $\gamma_i$
+for each user.  If $x_{ij}$ only has one element, then we just set $b$
+to 1. Whether we really need $\gamma_i$ is not clear. I just include this so that we can try this out.
+
+\item $b$, $g_0$, $d_0$ and $c_0$ are regression weight vectors. $G$, $D$ and $H$ are regression weight matrices.
+
+\item $a_{\alpha}$, $a_{\beta}$ and $a_\gamma$ are unknown variances. $A_u$, $A_v$ and $A_s$ are unknown variance-covariance matrices.
+
+\end{itemize}
