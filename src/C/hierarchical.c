@@ -6,6 +6,7 @@
 */
 
 
+#include <Rinternals.h>
 #include "util.h"
 #include <stdio.h>
 
@@ -68,6 +69,33 @@ void hierarchical_smoothing_1D_2Levels(
 		b_cov[ik]  = D * a_var[i];
 	}}
 }
+SEXP hierarchical_smoothing_1D_2Levels_Call(
+  // Output
+  SEXP a_mean, SEXP a_var, // nItems x 1
+  SEXP b_mean, SEXP b_var, SEXP b_cov, // nItems x nCategories
+  // Input
+  SEXP itemIndex, SEXP categoryIndex, SEXP obs, SEXP var_obs, // nObs x 1
+  SEXP q, SEXP var_b, // nCategories x 1
+  SEXP var_a, // 1x1
+  SEXP numObs, SEXP numItems, SEXP numCategories,
+  // Control
+  SEXP verbose, SEXP debug
+){
+  hierarchical_smoothing_1D_2Levels(
+    // Output
+    MY_REAL(a_mean), MY_REAL(a_var), // nItems x 1
+    MY_REAL(b_mean), MY_REAL(b_var), MY_REAL(b_cov), // nItems x nCategories
+    // Input
+    MY_INTEGER(itemIndex), MY_INTEGER(categoryIndex), MY_REAL(obs), MY_REAL(var_obs), // nObs x 1
+    MY_REAL(q), MY_REAL(var_b), // nCategories x 1
+    MY_REAL(var_a), // 1x1
+    MY_INTEGER(numObs), MY_INTEGER(numItems), MY_INTEGER(numCategories),
+    // Control
+    MY_INTEGER(verbose), MY_INTEGER(debug)
+  );
+  return R_NilValue;
+}
+
 
 void hierarchical_smoothing_1D_2Levels_incorrect(
 	// Output

@@ -1,6 +1,6 @@
 ### Copyright (c) 2011, Yahoo! Inc.  All rights reserved.
 ### Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
-### 
+###
 ### Author: Bee-Chung Chen and Liang Zhang
 
 ###
@@ -10,16 +10,16 @@
 # (1) Read input data
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 # (1.1) Training observations and observation features
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
+names(obs.train) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
 # (1.2) Test observations and observation features
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
+names(obs.test) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -35,15 +35,16 @@ x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
 names(x_ctx)[1] = "ctx_id";
 
 # (2) Fit Models
+set.seed(0);
 source("src/R/BST.R");
 # (2.1) Fit a model without features
-ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
-		out.dir="/tmp/bst/quick-start", model.name="uvw3", 
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test,
+		out.dir="/tmp/bst/quick-start", model.name="uvw3",
 		nFactors=3, nIter=10);
 # (2.2) Fit a model with features
-ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train,
 		x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-		out.dir="/tmp/bst/quick-start", 
+		out.dir="/tmp/bst/quick-start",
 		model.name="uvw3-F", nFactors=3, nIter=10);
 
 # (3) Check the Output
@@ -62,28 +63,28 @@ pred = predict.bst(
 		x_src=x_src, x_dst=x_dst, x_ctx=x_ctx);
 
 # Fit Multiple Models in One Call
-ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, 
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train,
 		x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-		out.dir = "/tmp/bst/quick-start", 
+		out.dir = "/tmp/bst/quick-start",
 		model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
 
 # Fit the Original BST Model
 obs.train$src_context = obs.train$dst_context = obs.train$ctx_id
 obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id
 ans = fit.bst(obs.train=obs.train, obs.test=obs.test,
-		x_obs.train=x_obs.train, x_obs.test=x_obs.test, 
+		x_obs.train=x_obs.train, x_obs.test=x_obs.test,
 		x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-		out.dir="/tmp/bst/quick-start", model.name="original-bst", 
+		out.dir="/tmp/bst/quick-start", model.name="original-bst",
 		nFactors=3, nIter=10, src.dst.same=TRUE,
 		control=fit.bst.control(has.gamma=FALSE, rm.self.link=TRUE));
 
 # Fit RLFM
 obs.train$src_context = obs.train$dst_context = obs.train$ctx_id = NULL;
 obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id  = NULL;
-ans = fit.bst(obs.train=obs.train, obs.test=obs.test, 
-		x_obs.train=x_obs.train, x_obs.test=x_obs.test, 
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test,
+		x_obs.train=x_obs.train, x_obs.test=x_obs.test,
 		x_src=x_src, x_dst=x_dst,
-		out.dir="/tmp/bst/quick-start", model.name="uvw3-F", 
+		out.dir="/tmp/bst/quick-start", model.name="uvw3-F",
 		nFactors=3, nIter=10);
 
 ###
@@ -100,16 +101,16 @@ set.seed(0);
 # (1) Read input data
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 # (1.1) Training observations and observation features
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
             sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
+names(obs.train) = c("src_id", "dst_id", "src_context",
                      "dst_context", "ctx_id", "y");
 x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
               sep=""), sep="\t", header=FALSE, as.is=TRUE);
 # (1.2) Test observations and observation features
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""),
            sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
+names(obs.test) = c("src_id", "dst_id", "src_context",
                     "dst_context", "ctx_id", "y");
 x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
              sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -125,7 +126,7 @@ x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
 names(x_ctx)[1] = "ctx_id";
 
 # (2) Index data: Put the input data into the right form
-#     Convert IDs into numeric indices and 
+#     Convert IDs into numeric indices and
 #     Convert some data frames into matrices
 # (2.1) Index training data
 #     See src/R/model/multicontext_model_utils.R: indexData() for details
@@ -174,7 +175,7 @@ ans = run.multicontext(
 		reg.algo=NULL,     # The regression algorithm to be used in the M-step (NULL => linear regression)
 		reg.control=NULL,  # The control paramter for reg.algo
 		# initialization parameters
-		var_alpha=1, var_beta=1, var_gamma=1, 
+		var_alpha=1, var_beta=1, var_gamma=1,
 		var_v=1, var_u=1, var_w=1, var_y=NULL,
 		relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 		# others
@@ -199,7 +200,7 @@ str(factor);
 
 # Make prediction
 pred = predict.multicontext(
-		model=list(factor=factor, param=param), 
+		model=list(factor=factor, param=param),
 		obs=data.test$obs, feature=data.test$feature, is.logistic=FALSE
 );
 # Now, pred$pred.y contains the predicted rating for data.test$obs
@@ -222,17 +223,17 @@ set.seed(0);
 # (1) Read input data
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 # (1.1) Training observations and observation features
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
+names(obs.train) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.train = read.table(paste(input.dir,"/sparse-feature-obs-train.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
 names(x_obs.train) = c("obs_id", "index", "value");
 # (1.2) Test observations and observation features
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
+names(obs.test) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.test = read.table(paste(input.dir,"/sparse-feature-obs-test.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -249,7 +250,7 @@ x_ctx = read.table(paste(input.dir,"/sparse-feature-ctxt.txt",sep=""),
 names(x_ctx) = c("ctx_id", "index", "value");
 
 # (2) Index data: Put the input data into the right form
-#     Convert IDs into numeric indices and 
+#     Convert IDs into numeric indices and
 #     Convert some data frames into matrices
 # (2.1) Index training data
 #     See src/R/model/multicontext_model_utils.R: indexData() for details
@@ -298,7 +299,7 @@ ans = run.multicontext(
 		approx.interaction=TRUE, # predict E[uv] as E[u]E[v].
 		reg.algo=GLMNet,   # The regression algorithm to be used in the M-step (NULL => linear regression)
 		# initialization parameters
-		var_alpha=1, var_beta=1, var_gamma=1, 
+		var_alpha=1, var_beta=1, var_gamma=1,
 		var_v=1, var_u=1, var_w=1, var_y=NULL,
 		relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 		# others
@@ -337,17 +338,17 @@ set.seed(0);
 # (1) Read input data
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 # (1.1) Training observations and observation features
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
+names(obs.train) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.train = read.table(paste(input.dir,"/sparse-feature-obs-train.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
 names(x_obs.train) = c("obs_id", "index", "value");
 # (1.2) Test observations and observation features
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
+names(obs.test) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.test = read.table(paste(input.dir,"/sparse-feature-obs-test.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -364,7 +365,7 @@ x_ctx = read.table(paste(input.dir,"/sparse-feature-ctxt.txt",sep=""),
 names(x_ctx) = c("ctx_id", "index", "value");
 
 # (2) Index data: Put the input data into the right form
-#     Convert IDs into numeric indices and 
+#     Convert IDs into numeric indices and
 #     Convert some data frames into matrices
 data.train = indexData(
 		obs=obs.train, src.dst.same=FALSE, rm.self.link=FALSE,
@@ -434,17 +435,17 @@ set.seed(0);
 # (1) Read input data
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 # (1.1) Training observations and observation features
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
+names(obs.train) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.train = read.table(paste(input.dir,"/sparse-feature-obs-train.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
 names(x_obs.train) = c("obs_id", "index", "value");
 # (1.2) Test observations and observation features
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
+names(obs.test) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.test = read.table(paste(input.dir,"/sparse-feature-obs-test.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -462,7 +463,7 @@ obs.test$src_context  = obs.test$dst_context  = obs.test$ctx_id = NULL;
 x_ctx = NULL;
 
 # (2) Index data: Put the input data into the right form
-#     Convert IDs into numeric indices and 
+#     Convert IDs into numeric indices and
 #     Convert some data frames into matrices
 # (2.1) Index training data
 #     See src/R/model/multicontext_model_utils.R: indexData() for details
@@ -511,7 +512,7 @@ ans = run.multicontext(
 		approx.interaction=TRUE, # predict E[uv] as E[u]E[v].
 		reg.algo=GLMNet,   # The regression algorithm to be used in the M-step (NULL => linear regression)
 		# initialization parameters
-		var_alpha=1, var_beta=1, var_gamma=1, 
+		var_alpha=1, var_beta=1, var_gamma=1,
 		var_v=1, var_u=1, var_w=1, var_y=NULL,
 		relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 		# others
@@ -544,9 +545,9 @@ set.seed(0);
 # (1) Read only the training data (NOT the test data)
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
 # (1.1) Training observations and observation features
-obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""), 
+obs.train = read.table(paste(input.dir,"/obs-train.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.train) = c("src_id", "dst_id", "src_context", 
+names(obs.train) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.train = read.table(paste(input.dir,"/dense-feature-obs-train.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -562,7 +563,7 @@ x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""),
 names(x_ctx)[1] = "ctx_id";
 
 # (2) Index the training data: Put the input data into the right form
-#     Convert IDs into numeric indices and 
+#     Convert IDs into numeric indices and
 #     Convert some data frames into matrices
 data.train = indexData(
 		obs=obs.train, src.dst.same=FALSE, rm.self.link=FALSE,
@@ -602,7 +603,7 @@ ans = run.multicontext(
 		reg.algo=NULL,     # The regression algorithm to be used in the M-step (NULL => linear regression)
 		reg.control=NULL,  # The control paramter for reg.algo
 		# initialization parameters
-		var_alpha=1, var_beta=1, var_gamma=1, 
+		var_alpha=1, var_beta=1, var_gamma=1,
 		var_v=1, var_u=1, var_w=1, var_y=NULL,
 		relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 		# others
@@ -631,9 +632,9 @@ str(data.train); # this does not include the actual data!!
 
 # Read the test data
 input.dir = "test-data/multicontext_model/simulated-mtx-uvw-10K"
-obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""), 
+obs.test = read.table(paste(input.dir,"/obs-test.txt",sep=""),
 		sep="\t", header=FALSE, as.is=TRUE);
-names(obs.test) = c("src_id", "dst_id", "src_context", 
+names(obs.test) = c("src_id", "dst_id", "src_context",
 		"dst_context", "ctx_id", "y");
 x_obs.test = read.table(paste(input.dir,"/dense-feature-obs-test.txt",
 				sep=""), sep="\t", header=FALSE, as.is=TRUE);
@@ -660,7 +661,7 @@ data.test = indexTestData(
 
 # Make prediction
 pred = predict.multicontext(
-		model=list(factor=factor, param=param), 
+		model=list(factor=factor, param=param),
 		obs=data.test$obs, feature=data.test$feature, is.logistic=FALSE
 );
 # Now, pred$pred.y contains the predicted rating for data.test$obs

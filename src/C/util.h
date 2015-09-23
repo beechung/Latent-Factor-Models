@@ -25,7 +25,8 @@
 
 #define CHK_SAME_NUMBER(msg, x, y) if((x != 0 || y != 0) && (fabs(x-y) / fmax(fabs(x), fabs(y)) > 1e-8)) error("Error: %s. The two number should be the same: %f vs %f (file: %s, line: %d)", msg, x, y, __FILE__, __LINE__)
 
-
+#define MY_REAL(x) (TYPEOF(x) == NILSXP ? NULL : REAL(x))
+#define MY_INTEGER(x) (TYPEOF(x) == NILSXP ? NULL : INTEGER(x))
 
 #define CHK_MAT_SYM(msg, A, nrow) for(int CHK_MAT_SYM_i=0; CHK_MAT_SYM_i<nrow; CHK_MAT_SYM_i++) for(int CHK_MAT_SYM_j=0; CHK_MAT_SYM_j<CHK_MAT_SYM_i; CHK_MAT_SYM_j++) CHK_SAME_NUMBER(msg, A[C_MAT(CHK_MAT_SYM_i,CHK_MAT_SYM_j,nrow)], A[C_MAT(CHK_MAT_SYM_j,CHK_MAT_SYM_i,nrow)])
 
@@ -61,7 +62,7 @@ void sum_margin(
     // OUTPUT
     double *ans,
     // INPUT
-    const double *A, const int *nrow, const int *ncol, 
+    const double *A, const int *nrow, const int *ncol,
     const int *side // side=1: Sum up each row and return a vector with length nrow
                     // side=2: Sum up each column and return a vector with length ncol
 );

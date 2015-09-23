@@ -1,6 +1,6 @@
 ### Copyright (c) 2011, Yahoo! Inc.  All rights reserved.
 ### Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
-### 
+###
 ### Author: Liang Zhang
 
 source("src/R/BST.R");
@@ -24,9 +24,10 @@ x_ctx = read.table(paste(input.dir,"/dense-feature-ctxt.txt",sep=""), sep="\t", 
 names(x_ctx)[1] = "ctx_id";
 
 # (2) Call BST
-ans = fit.bst(obs.train=obs.train, obs.test=obs.test, out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
-#ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
-#        out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
+set.seed(2);
+ans = fit.bst(obs.train=obs.train, obs.test=obs.test, x_obs.train=x_obs.train, x_obs.test=x_obs.test, x_src=x_src, x_dst=x_dst, x_ctx=x_ctx,
+        out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
+# ans = fit.bst(obs.train=obs.train, obs.test=obs.test, out.dir = "/tmp/unit-test/simulated-mtx-uvw-10K", model.name=c("uvw1", "uvw2"), nFactors=c(1,2), nIter=10);
 
 
 # (3) Compare to the reference run

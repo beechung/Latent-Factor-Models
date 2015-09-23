@@ -1,6 +1,6 @@
 ### Copyright (c) 2011, Yahoo! Inc.  All rights reserved.
 ### Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
-### 
+###
 ### Author: Bee-Chung Chen
 
 ### ---------------------------------------------------------------------------
@@ -94,13 +94,13 @@ fit.multicontext <- function(
 	if(approx.interaction) test.obs.for.Estep = NULL
 	else                   test.obs.for.Estep = test.obs;
 	param$is.logistic = is.logistic;
-	
+
 	# setup obs, feature, test.obs, test.feature
 	if(!is.null(data.train)){
 		if(!all(c("obs", "feature") %in% names(data.train))) stop("Please check input parameter 'data.train' when calling function fit.multicontext or run.multicontext: data.train$obs and data.train$feature cannot be NULL");
 		if(!is.null(obs)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'obs=NULL'");
 		if(!is.null(feature)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'feature=NULL'");
-		obs=data.train$obs; 
+		obs=data.train$obs;
 		feature=data.train$feature;
 		data.train$obs = NULL;
 		data.train$feature = NULL;
@@ -111,19 +111,19 @@ fit.multicontext <- function(
 		if(!all(c("obs", "feature") %in% names(data.test))) stop("Please check input parameter 'data.test' when calling function fit.multicontext or run.multicontext: data.test$obs and data.test$feature cannot be NULL");
 		if(!is.null(test.obs)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.test', then you should set 'test.obs=NULL'");
 		if(!is.null(test.feature)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.test', then you should set 'test.feature=NULL'");
-		test.obs=data.test$obs; 
+		test.obs=data.test$obs;
 		test.feature=data.test$feature;
 		if(is.null(IDs)) IDs = data.test$IDs;
 	}else{
 		if(( is.null(test.obs) && !is.null(test.feature)) ||
-		   (!is.null(test.obs) &&  is.null(test.feature))) 
+		   (!is.null(test.obs) &&  is.null(test.feature)))
 	  		stop("If you want to supply test data to the fitting code, please specify input parameter 'data.test' when calling function fit.multicontext or run.multicontext");
 	}
-	
+
 	# Sanity check
 	if(out.level > 0 && is.null(out.dir)) stop("Please specify input parameter 'out.dir' when calling function fit.multicontext or run.multicontext with out.level > 0");
 	if(out.level > 0 && file.exists(out.dir) && !out.overwrite) stop("Output directory '",out.dir,"' EXISTS!!  Please remove the directory or specify a new directory for the input parameter out.dir.");
-	
+
 	has.u = TRUE;
 	if(is.null(factor$u)){
 		has.u = FALSE;
@@ -161,18 +161,18 @@ fit.multicontext <- function(
 		if(is.null(feature$x_ctx)) feature$x_ctx = array(0.0, dim=c(nEdgeContexts,0));
 		if(!is.null(test.feature) && is.null(test.feature$x_ctx)) test.feature$x_ctx = array(0.0, dim=c(nEdgeContexts,0));
 	}
-	
+
 	if(!all(names(ridge.lambda) %in% c("b","g0","d0","h0","G","D","H")))  stop("Please check input parameter 'ridge.lambda' when calling function fit.multicontext or run.multicontext. names(ridge.lambda) is not specified correctly. The only allowable names are 'b', 'g0', 'd0', 'h0', 'G', 'D', 'H'.");
 	if(!all(names(zero.mean) %in% c("alpha","beta","gamma","u","v","w"))) stop("Please check input parameter 'zero.mean' when calling function fit.multicontext or run.multicontext. names(zero.mean) is not specified correctly. The only allowable names are 'alpha', 'beta', 'gamma', 'u', 'v', 'w'.");
-	if(!all(names(fix.var) %in% c("alpha","beta","gamma","u","v","w")))   stop("Please check input parameter 'fix.var' when calling function fit.multicontext or run.multicontext. names(fix.var) is not specified correctly. The only allowable names are 'alpha', 'beta', 'gamma', 'u', 'v', 'w'."); 
-	
+	if(!all(names(fix.var) %in% c("alpha","beta","gamma","u","v","w")))   stop("Please check input parameter 'fix.var' when calling function fit.multicontext or run.multicontext. names(fix.var) is not specified correctly. The only allowable names are 'alpha', 'beta', 'gamma', 'u', 'v', 'w'.");
+
 	warning.any.not.in(c("alpha", "beta"), names(factor), "Please check input parameter 'init.model' when calling function fit.multicontext or run.multicontext. The following components in init.model$factor are required: ", stop=TRUE);
-	
+
 	# Initialize obs for the logistic model
 	obs      = init.obs(obs=obs,      is.logistic=is.logistic);
 	test.obs = init.obs(obs=test.obs, is.logistic=is.logistic);
 	# now obs$response stores the input response values
-	
+
 	if(!is.integer(obs$src.id)) obs$src.id = as.integer(obs$src.id);
 	if(!is.integer(obs$dst.id)) obs$dst.id = as.integer(obs$dst.id);
 	if(!is.null(obs$src.context)  && !is.integer(obs$src.context))  obs$src.context  = as.integer(obs$src.context);
@@ -181,8 +181,8 @@ fit.multicontext <- function(
 
 	subset.info = NULL;
 	if(rm.factors.without.obs.in.loglik) subset.info = get.subset.info(obs, output.any=!has.u);
-	
-	size = syncheck.multicontext.spec(factor=factor, obs=obs, feature=feature, param=param, 
+
+	size = syncheck.multicontext.spec(factor=factor, obs=obs, feature=feature, param=param,
 			warning=10, print=TRUE);
 	check.obs.feature(obs, feature, nSrcContexts=size$nSrcContexts, nDstContexts=size$nDstContexts, nEdgeContexts=size$nEdgeContexts);
 	if(!is.null(test.obs)){
@@ -194,20 +194,20 @@ fit.multicontext <- function(
 		temp = feature; temp$x_obs = test.feature$x_obs;
 		check.obs.feature(test.obs.for.Estep, temp, nSrcContexts=size$nSrcContexts, nDstContexts=size$nDstContexts, nEdgeContexts=size$nEdgeContexts);
 	}
-	
+
 	factor = deepCopy(factor); # Make a copy (if not, the C code will modify the input factor values)
-	
+
 	if(verbose >= 1) cat("================= START fit.MCEM =====================================\n",sep="");
 	if(verbose >= 2) print(size);
-	
+
 	begin.time = proc.time();
-	
+
 	CD.loglik = rep(NA, nIter+1);
 	E.loglik  = rep(NA, nIter+1);
 	loglik = get.logLikelihood(obs, factor, feature, param, subset.info=subset.info, verbose=verbose, is.logistic=is.logistic, prefix=" Initial");
 	CD.loglik[1] = loglik$CD;
 	E.loglik[1]  = loglik$E;
-	
+
 	prediction = NULL;  TestLoss = NULL;  minTestLoss = NULL;  model.minTestLoss = NULL;
 	if(!is.null(test.obs)){
 		TestLoss = rep(NA, nIter+1); # TestLoss records the loss in the test set of each iteration
@@ -218,23 +218,23 @@ fit.multicontext <- function(
 		model.minTestLoss = list(factor=factor, param=param);
 	}
 	time.used = proc.time() - begin.time;
-	
+
 	if(verbose >= 1 && !is.null(test.obs)) cat("      test loss:    ", minTestLoss, " (",time.used[3]," sec)\n",sep="");
-	
+
 	output.to.dir(
-			out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
-			prediction=prediction, loglik=loglik$CD, 
-			minTestLoss=minTestLoss, nSamples=nSamples, iter=0, out.level=out.level, out.overwrite=out.overwrite, 
+			out.dir=out.dir, factor=factor, param=param, IDs=IDs,
+			prediction=prediction, loglik=loglik$CD,
+			minTestLoss=minTestLoss, nSamples=nSamples, iter=0, out.level=out.level, out.overwrite=out.overwrite,
 			TimeEStep=0, TimeMStep=0, TimeTest=time.used[3], verbose=verbose, name="model"
 	);
-	
+
 	for(iter in 1:nIter){
-		
+
 		# Create response (for the logistic model)
 		response = generate.response(obs=obs, param=param, is.logistic=is.logistic, verbose=verbose);
 		obs$y = response$y;
 		param$var_y = response$var_y;
-		
+
 		if(verbose >= 1){
 			cat("---------------------------------------------------------\n",
 				"        Iteration ",iter,"\n",
@@ -242,7 +242,7 @@ fit.multicontext <- function(
 				"start E-STEP\n",sep="");
 		}
 		b.time = proc.time();
-		
+
 		###
 		### E-STEP
 		###
@@ -262,9 +262,9 @@ fit.multicontext <- function(
 			);
 		}
 		factor = mc_e$mean;
-		
+
 		time.used.1 = proc.time() - b.time;
-		
+
 		# verbose
 		if(verbose >= 1 || output.at.end.of.EStep){
 			if(verbose >= 1) cat("end   E-STEP (used ",time.used.1[3]," sec)\n", sep="");
@@ -276,17 +276,17 @@ fit.multicontext <- function(
 				if(verbose >= 2) cat("      test loss:    ", prediction$test.loss, " (",time.used.TestLoss[3]," sec)\n",sep="");
 			}
 		}
-		
+
 		if(output.at.end.of.EStep){
 			output.to.dir(
-				out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
-				prediction=prediction, loglik=loglik.E$CD, 
-				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite, 
+				out.dir=out.dir, factor=factor, param=param, IDs=IDs,
+				prediction=prediction, loglik=loglik.E$CD,
+				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite,
 				TimeEStep=time.used.1[3], TimeMStep=0, TimeTest=time.used.TestLoss[3], verbose=verbose,
 				other=list(mc_e=mc_e), name="model-end-of-E"
 			);
 		}
-		
+
 		###
 		### M-STEP
 		###
@@ -300,13 +300,13 @@ fit.multicontext <- function(
 				debug=debug, verbose=verbose.M
 		);
 		param = update.param(factor.mean=mc_e$mean, factor.var=mc_e$var, param=param.new, x_obs=feature$x_obs, obs=obs, is.logistic=is.logistic);
-		
+
 		time.used.2 = proc.time() - b.time;
 
 		if(verbose >= 1) cat("end   M-STEP (used ",time.used.2[3]," sec)\n", sep="");
-		
+
 		b.time.test = proc.time();
-		
+
 		loglik = get.logLikelihood(obs, factor, feature, param, factor.var=mc_e$var, factor.cov=mc_e$cov, subset.info=subset.info, verbose=verbose, is.logistic=is.logistic, prefix="        ");
 		CD.loglik[iter+1] = loglik$CD;
 		E.loglik[iter+1]  = loglik$E;
@@ -317,7 +317,7 @@ fit.multicontext <- function(
 				if(debug > 0) warning("E[loglik] decreases after the M step ",loglik.E$E," -> ",loglik$E," (may be due to regularized regression)");
 			}
 		}
-		
+
 		if(!is.null(test.obs)){
 			b.time.TestLoss = proc.time();
 			prediction = predict.multicontext(model=list(factor=factor, param=param), obs=test.obs, feature=test.feature, is.logistic=is.logistic, fScore=mc_e$test.fScore$mean);
@@ -325,33 +325,33 @@ fit.multicontext <- function(
 			time.used.TestLoss = proc.time() - b.time.TestLoss;
 		}
 		time.used.3 = proc.time() - b.time.test;
-		
+
 		if(verbose >= 1){
-			cat("  training loss:       ", attr(loglik$CD,"loss"), "\n",sep="");			
-			if(!is.null(test.obs)) 
+			cat("  training loss:       ", attr(loglik$CD,"loss"), "\n",sep="");
+			if(!is.null(test.obs))
 			cat("      test loss:       ", prediction$test.loss, " (",time.used.TestLoss[3]," sec)\n",sep="");
 		}
-		
+
 		###
 		### Update the model.minTestLoss model if the TestLoss decreases
 		###
-		if(!is.null(test.obs) && TestLoss[iter+1] < minTestLoss){ 
+		if(!is.null(test.obs) && TestLoss[iter+1] < minTestLoss){
 			minTestLoss = TestLoss[iter+1];
 			model.minTestLoss$factor=deepCopy(factor);
 			model.minTestLoss$param=param;
-			
+
 			if(verbose >= 2) cat("TestLoss decreases!\n");
 		}
-		
+
 		output.to.dir(
-				out.dir=out.dir, factor=factor, param=param, IDs=IDs, 
-				prediction=prediction, loglik=loglik$CD, 
-				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite, 
+				out.dir=out.dir, factor=factor, param=param, IDs=IDs,
+				prediction=prediction, loglik=loglik$CD,
+				minTestLoss=minTestLoss, nSamples=nSamples, iter=iter, out.level=out.level, out.overwrite=out.overwrite,
 				TimeEStep=time.used.1[3], TimeMStep=time.used.2[3], TimeTest=time.used.3[3], verbose=verbose, name="model",
 				data.train=data.train
 		);
 	}
-	
+
 	output = list(
 			CD.loglik   = CD.loglik,
 			E.loglik    = E.loglik,
@@ -360,14 +360,14 @@ fit.multicontext <- function(
 			model.minTestLoss = model.minTestLoss,
 			model.last = list(factor=factor, param=param)
 	);
-	
+
 	time.used = proc.time() - begin.time;
 	if(verbose >= 1){
 		if(!is.null(test.obs)) cat("Minimum test-set loss: ",minTestLoss,"\n",sep="");
 		cat("Total time: ",time.used[3]," sec.\n",
 			"=================== END fit.MCEM =====================================\n",sep="");
 	}
-	
+
 	return(output);
 }
 # run the model including initialization
@@ -392,7 +392,7 @@ run.multicontext <- function(
 	reg.algo=NULL,     # The regression algorithm to be used in the M-step (NULL => linear regression)
 	reg.control=NULL,  # The control paramter for reg.algo
 	# initialization parameters
-	var_alpha=1, var_beta=1, var_gamma=1, 
+	var_alpha=1, var_beta=1, var_gamma=1,
 	var_v=1, var_u=1, var_w=1, var_y=NULL,
 	relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1,
 	# others
@@ -438,7 +438,7 @@ run.multicontext <- function(
 		if(length(IDs$SrcIDs) != length(IDs$DstIDs) || any(IDs$SrcIDs != IDs$DstIDs))
 			stop("Please check input parameters 'setting' and 'obs' when calling function run.multicontext: Some row of setting$has.u is FALSE, but obs is indexed in a way that does not support this option. Please call function indexData with src.dst.same=TRUE before calling function run.multicontext.");
 	}
-	
+
 	out = list(summary=setting);
 	out$summary$best.CD.loglik = NA;
 	out$summary$last.CD.loglik = NA;
@@ -453,16 +453,16 @@ run.multicontext <- function(
 		if(!is.null(rnd.seed.init)) set.seed(rnd.seed.init);
 		begin.time = proc.time();
 		init = init.simple.random(
-			data.train=data.train, obs=obs, feature=feature, 
-			nFactors=setting[k,"nFactors"], has.u=setting[k,"has.u"], has.gamma=setting[k,"has.gamma"], 
+			data.train=data.train, obs=obs, feature=feature,
+			nFactors=setting[k,"nFactors"], has.u=setting[k,"has.u"], has.gamma=setting[k,"has.gamma"],
 			nLocalFactors=setting[k,"nLocalFactors"], is.logistic=setting[k,"is.logistic"],
-			var_alpha=var_alpha, var_beta=var_beta, var_gamma=var_gamma, 
+			var_alpha=var_alpha, var_beta=var_beta, var_gamma=var_gamma,
 			var_v=var_v, var_u=var_u, var_w=var_w, var_y=var_y,
 			relative.to.var_y=relative.to.var_y, var_alpha_global=var_alpha_global, var_beta_global=var_beta_global
 		);
 		init$param$reg.algo = reg.algo;
 		init$param$reg.control = reg.control;
-		
+
 		if(!is.null(rnd.seed.fit)) set.seed(rnd.seed.fit);
 		ans = fit.multicontext(
 			data.train=data.train, data.test=data.test,
@@ -502,7 +502,7 @@ run.multicontext <- function(
 ###         feature = list(x_obs, x_src, x_dst, x_ctx);
 ###         param   = list(b, g0, d0, h0, G, D, H, q, r,
 ###                        var_y, var_alpha, var_alpha_global, var_beta_global, var_beta, var_gamma, var_u, var_v, var_w);
-###         
+###
 ### OUTPUT: mean = list(alpha, alpha_global, beta, gamma, beta_global, u, v, w, fScore);
 ###         var  = list(alpha, alpha_global, beta, gamma, beta_global, u, v, w, fScore);
 ###         cov  = list(alpha, beta);
@@ -517,15 +517,15 @@ MCEM_EStep.multicontext.C <- function(
 	debug=0, verbose=0
 ){
 	size = syncheck.multicontext.spec(factor=factor, obs=obs, feature=feature, param=param);
-	
+
 	if(is.null(test.obs))             nTestObs = as.integer(0)
 	else if(is.data.frame(test.obs))  nTestObs = as.integer(nrow(test.obs))
 	else stop("test.obs should be either NULL or a data frame.");
-	
+
 	if(is.null(factor$alpha)) stop("factor$alpha cannot be null");
 	if(is.null(factor$beta))  stop("factor$beta cannot be null");
 	if(nrow(obs) == 0) stop("No observation data (i.e., nrow(obs) == 0)");
-	
+
 	# Prepare the feature-based prior
 	xb = reg.predict(model=param$b, x=feature$x_obs, algo=param$reg.algo);
 	x_src.g0 = NULL; x_dst.d0 = NULL; x_ctx.h0 = NULL; x_src.G = NULL; x_dst.D = NULL; x_ctx.H = NULL;
@@ -536,7 +536,7 @@ MCEM_EStep.multicontext.C <- function(
 	if(!is.null(param$G))   x_src.G = reg.predict(model=param$G,  x=feature$x_src, algo=param$reg.algo, ncol=size$nFactors);
 	if(!is.null(param$D))   x_dst.D = reg.predict(model=param$D,  x=feature$x_dst, algo=param$reg.algo, ncol=size$nFactors);
 	if(!is.null(param$H))   x_ctx.H = reg.predict(model=param$H,  x=feature$x_ctx, algo=param$reg.algo, ncol=size$nFactors);
-	
+
 	# Allocate space for the output
 	if(is.null(factor$fScore)) factor$fScore = rep(double(1),size$nObs);
 	if(is.null(factor$alpha_global) && size$nSrcContexts > 1) factor$alpha_global = rep(double(1),size$nSrcNodes);
@@ -560,7 +560,7 @@ MCEM_EStep.multicontext.C <- function(
 		test.fScore$mean = rep(double(1), nTestObs);
 		test.fScore$var  = rep(double(1), nTestObs);
 	}
-	
+
 	obs.y = drop(obs$y - xb);
 
     #  dim = {0:nObs, 1:nAlpha, 2:nBeta, 3:nrowU, 4:nrowV, 5:nAlphaContexts, 6:nBetaContexts,
@@ -570,13 +570,13 @@ MCEM_EStep.multicontext.C <- function(
     #		0               1                      2
 	dim = c(nObs=size$nObs, nAlpha=size$nSrcNodes, nBeta=size$nDstNodes,
 	#       3                 4
-	        nrowU=size$nrowU, nrowV=size$nDstNodes, 
+	        nrowU=size$nrowU, nrowV=size$nDstNodes,
 	#       5                                 6
 	        nAlphaContexts=size$nSrcContexts, nBetaContexts=size$nDstContexts,
     #       7                                 8
 	        nEdgeContexts=size$nEdgeContexts, nFactors=size$nFactors,
 	#       9                   10                          11
-			nVar_y=size$nVar_y, nVar_alpha=size$nVar_alpha, nVar_beta=size$nVar_beta, 
+			nVar_y=size$nVar_y, nVar_alpha=size$nVar_alpha, nVar_beta=size$nVar_beta,
 	#       12                  13                  14
 			nVar_u=size$nVar_u, nVar_v=size$nVar_v, nVar_w=size$nVar_w,
 	#       15                                        16
@@ -587,7 +587,7 @@ MCEM_EStep.multicontext.C <- function(
 			nGamma=as.integer(length(factor$gamma)), nVar_gamma=as.integer(length(param$var_gamma)),
 	#       21
 			nTestObs=nTestObs);
-		
+
 	check_type_size(factor$alpha, "double", dim[c("nAlpha","nAlphaContexts")]);
 	check_type_size(factor$beta,  "double", dim[c("nBeta", "nBetaContexts")]);
 	check_type_size(factor$gamma, "double", dim[c("nGamma")]);
@@ -615,7 +615,7 @@ MCEM_EStep.multicontext.C <- function(
 	check_type_size(obs$edge.context, "int", dim["nObs"], isNullOK=(size$nEdgeContexts==0));
 	check_type_size(param[["q"]], "double", dim[c("nAlphaContexts")], isNullOK=(dim["nAlphaContexts"]==1));
 	check_type_size(param[["r"]], "double", dim[c("nBetaContexts")],  isNullOK=(dim["nBetaContexts"]==1));
-	check_type_size(obs.y,   "double", dim["nObs"]);	
+	check_type_size(obs.y,   "double", dim["nObs"]);
 	check_type_size(x_src.g0, "double", dim[c("nAlpha", "nAlphaContexts")]);
 	check_type_size(x_dst.d0, "double", dim[c("nBeta",  "nBetaContexts")]);
 	check_type_size(x_ctx.h0, "double", dim[c("nGamma")]);
@@ -636,12 +636,12 @@ MCEM_EStep.multicontext.C <- function(
 	check_type_size(test.obs$src.context,  "int", dim["nTestObs"], isNullOK=(nTestObs == 0 || size$nSrcContexts==1));
 	check_type_size(test.obs$dst.context,  "int", dim["nTestObs"], isNullOK=(nTestObs == 0 || size$nDstContexts==1));
 	check_type_size(test.obs$edge.context, "int", dim["nTestObs"], isNullOK=(nTestObs == 0 || size$nEdgeContexts==0));
-	
+
 	var_w = param$var_w;
 	if(all(var_w == 0)) dim["nVar_w"] = as.integer(0);
 	if(!is.integer(dim)) stop("!is.integer(dim)");
-	
-	ans = .C("MCEM_EStep_multicontext",
+
+	ans = .Call("MCEM_EStep_multicontext_Call",
     	# INPUT (initial factor values) & OUTPUT (Monte Carlo mean of factor values)
     	factor$alpha, factor$beta, factor$gamma, factor$u, factor$v, factor$w,
         # OUTPUT
@@ -655,15 +655,14 @@ MCEM_EStep.multicontext.C <- function(
     	obs$src.id, obs$dst.id, obs$src.context, obs$dst.context, obs$edge.context,
     	param[["q"]], param[["r"]],
     	obs.y, x_src.g0, x_dst.d0, x_ctx.h0, x_src.G, x_dst.D, x_ctx.H,
-    	param$var_y, param$var_alpha, param$var_alpha_global, param$var_beta, param$var_beta_global, 
+    	param$var_y, param$var_alpha, param$var_alpha_global, param$var_beta, param$var_beta_global,
 		param$var_gamma, param$var_u, param$var_v, var_w,
 		test.obs$src.id, test.obs$dst.id, test.obs$src.context, test.obs$dst.context, test.obs$edge.context,
 		dim, as.integer(length(dim)),
     	# OTHER
-    	as.integer(debug), as.integer(verbose),
-		DUP=FALSE
+    	as.integer(debug), as.integer(verbose)
 	);
-	
+
 	output = list(
 		mean=factor, var=sampvar, cov=sampcov
 	);
@@ -679,9 +678,9 @@ MCEM_EStep.multicontext.C <- function(
 ###   g0, d0, h0, G, D, H are all 0
 ###
 init.simple.random <- function(
-	data.train=NULL, obs=NULL, feature=NULL, nFactors, has.u, has.gamma, 
+	data.train=NULL, obs=NULL, feature=NULL, nFactors, has.u, has.gamma,
 	nLocalFactors=NULL, is.logistic=FALSE,
-	var_alpha=1, var_beta=1, var_gamma=1, 
+	var_alpha=1, var_beta=1, var_gamma=1,
 	var_v=1, var_u=1, var_w=1, var_y=1,
 	relative.to.var_y=FALSE, var_alpha_global=1, var_beta_global=1
 ){
@@ -690,28 +689,28 @@ init.simple.random <- function(
 		if(!all(c("obs", "feature") %in% names(data.train))) stop("Please check input parameter 'data.train' when calling function fit.multicontext or run.multicontext: data.train$obs and data.train$feature cannot be NULL");
 		if(!is.null(obs)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'obs=NULL'");
 		if(!is.null(feature)) stop("When calling function fit.multicontext or run.multicontext, if you already specified 'data.train', then you should set 'feature=NULL'");
-		obs=data.train$obs; 
+		obs=data.train$obs;
 		feature=data.train$feature;
 		data.train$obs = NULL;
 		data.train$feature = NULL;
 	}else{
 		if(is.null(obs) || is.null(feature)) stop("Please specify input parameter 'data.train' when calling function fit.multicontext or run.multicontext");
 	}
-	
+
 	nObs = nrow(obs); nSrcNodes = nrow(feature$x_src); nDstNodes = nrow(feature$x_dst);
-	nSrcFeatures  = ncol(feature$x_src); 
+	nSrcFeatures  = ncol(feature$x_src);
 	nDstFeatures  = ncol(feature$x_dst);
 	nCtxFeatures  = if(is.null(feature$x_ctx))    0 else ncol(feature$x_ctx);
 	nSrcContexts  = if(is.null(obs$src.context))  1 else max(obs$src.context);
 	nDstContexts  = if(is.null(obs$dst.context))  1 else max(obs$dst.context);
 	nEdgeContexts = if(is.null(obs$edge.context)) 0 else max(obs$edge.context);
-	
+
 	if(!is.null(nLocalFactors) && nLocalFactors == 0) nLocalFactors = NULL;
-	
+
 	if(!has.u && nSrcNodes != nDstNodes) stop("When has.u = FALSE, the number of source nodes should be the same as the number of destination nodes (i.e., nrow(feature$x_src) == nrow(feature$x_dst)).");
 	if(has.gamma && nEdgeContexts == 0) stop("When has.gamma = TRUE, obs$edge.context cannot be NULL");
 	if(!is.null(nLocalFactors) && nFactors != nLocalFactors*nEdgeContexts) stop("nFactors != nLocalFactors*nEdgeContexts");
-	
+
 	b = rep(0, ncol(feature$x_obs));
 	if(is.logistic){
 		if(is.null(var_y)) var_y = 1;
@@ -738,11 +737,11 @@ init.simple.random <- function(
 		if(is.null(var_y)) var_y = var(obs$y);
 	}
 	if(relative.to.var_y){
-		var_alpha=var_alpha*var_y; var_beta=var_beta*var_y; 
-		var_alpha_global=var_alpha_global*var_y; var_beta_global=var_beta_global*var_y; 
+		var_alpha=var_alpha*var_y; var_beta=var_beta*var_y;
+		var_alpha_global=var_alpha_global*var_y; var_beta_global=var_beta_global*var_y;
 		var_gamma=var_gamma*var_y; var_v=var_v*var_y; var_u=var_u*var_y; var_w=var_w*var_y;
 	}
-	
+
 	factor = list(
 		alpha = matrix(rnorm(nSrcNodes*nSrcContexts, sd=sqrt(var_alpha)), nrow=nSrcNodes),
 		beta  = matrix(rnorm(nDstNodes*nDstContexts, sd=sqrt(var_beta )), nrow=nDstNodes)
@@ -762,13 +761,13 @@ init.simple.random <- function(
 			}
 		}
 	}
-	
+
 	if(length(var_alpha) == 1 && nSrcContexts > 1) var_alpha = rep(var_alpha, nSrcContexts);
 	if(length(var_beta)  == 1 && nDstContexts > 1) var_beta  = rep(var_beta,  nDstContexts);
-	
+
 	param = list(
-		b=b, 
-		g0=matrix(0.0,nrow=nSrcFeatures,ncol=nSrcContexts), 
+		b=b,
+		g0=matrix(0.0,nrow=nSrcFeatures,ncol=nSrcContexts),
 		d0=matrix(0.0,nrow=nDstFeatures,ncol=nDstContexts)
 	);
 	if(has.gamma) param$h0 = rep(0.0, nCtxFeatures);
@@ -779,7 +778,7 @@ init.simple.random <- function(
 	}
 	if(nSrcContexts > 1) param[["q"]] = rep(1.0, nSrcContexts);
 	if(nDstContexts > 1) param[["r"]] = rep(1.0, nDstContexts);
-	
+
 	param$var_y = var_y;  param$var_alpha = var_alpha;  param$var_beta = var_beta;
 	if(nSrcContexts > 1) param$var_alpha_global = var_alpha_global;
 	if(nDstContexts > 1) param$var_beta_global = var_beta_global;
@@ -790,9 +789,9 @@ init.simple.random <- function(
 		param$var_v = rep(var_v, n);
 		if(nEdgeContexts > 0) param$var_w = if(is.null(nLocalFactors)) var_w else 0;
 	}
-	
+
 	if(is.logistic) param$xi = rep(1.0, nrow(obs));
 	if(!is.null(nLocalFactors)) param$nLocalFactors = nLocalFactors;
-	
+
 	ans = list(factor=factor, param=param);
 }

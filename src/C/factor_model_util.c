@@ -6,6 +6,7 @@
 */
 
 #include <R.h>
+#include <Rinternals.h>
 #include <Rmath.h>
 #include <R_ext/Lapack.h>
 #include <stdio.h>
@@ -85,6 +86,36 @@ void gaussianPosterior_mainEffect(
     Free(sum_o);
 }
 
+SEXP gaussianPosterior_mainEffect_Call(
+    // OUTPUT
+    SEXP outSample, SEXP outMean, SEXP outVar,
+    //INPUT
+    SEXP option /*1:Sample, 2:Mean&Var, 3:Sample&Mean&Var*/,
+    SEXP thisEffIndex /*user or item*/,
+    SEXP rest /*o in the paper*/,
+    SEXP fittedEff /*g0*x_user or d0*x_item*/,
+    SEXP multiplier /*NULL*/,
+    SEXP var_y, SEXP var_eff /*var_alpha or var_beta*/,
+    SEXP nObs, SEXP nThisEff, SEXP nVar_y, SEXP nVar_eff,
+    // OTHER
+    SEXP debug
+){
+  gaussianPosterior_mainEffect(
+      // OUTPUT
+      MY_REAL(outSample), MY_REAL(outMean), MY_REAL(outVar),
+      //INPUT
+      MY_INTEGER(option) /*1:Sample, 2:Mean&Var, 3:Sample&Mean&Var*/,
+      MY_INTEGER(thisEffIndex) /*user or item*/,
+      MY_REAL(rest) /*o in the paper*/,
+      MY_REAL(fittedEff) /*g0*x_user or d0*x_item*/,
+      MY_REAL(multiplier) /*NULL*/,
+      MY_REAL(var_y), MY_REAL(var_eff) /*var_alpha or var_beta*/,
+      MY_INTEGER(nObs), MY_INTEGER(nThisEff), MY_INTEGER(nVar_y), MY_INTEGER(nVar_eff),
+      // OTHER
+      MY_INTEGER(debug)
+  );
+  return R_NilValue;
+}
 
 void gaussianPosterior_2WayInteraction(
     // OUTPUT

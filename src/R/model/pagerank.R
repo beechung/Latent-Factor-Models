@@ -1,6 +1,6 @@
 ### Copyright (c) 2011, Yahoo! Inc.  All rights reserved.
 ### Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
-### 
+###
 ### Author: Bee-Chung Chen
 
 check_type_size <- function(x, type, size, isNullOK=FALSE, check.NA=TRUE){
@@ -20,7 +20,7 @@ check_type_size <- function(x, type, size, isNullOK=FALSE, check.NA=TRUE){
 }
 
 ###
-### Power iteration: 
+### Power iteration:
 ### Given A, w, prior, find eigen.vector such that
 ###   lambda * eigen.vector[i] = sum_j { (w[j] * A[j,i] + (1 - w[j]) * prior[i]) * eigen.vector[j] }
 ### by repeating this computation until convergence.
@@ -41,14 +41,14 @@ power.iteration <- function(edges, init, prior, w, debug=3, option=1, max.iter=5
     out    = rep(double(1), nNodes);
     lambda = rep(as.double(1.0),1);
     num.iter = as.integer(rep(0,1));
-	
+
     if(length(w) == 1) w = rep(w, nNodes);
     if(length(prior) == 1) prior = rep(prior, nNodes);
-    
+
 	# set w[j] = 0 if sum_i A[j,i] = 0
 	temp = unique(edges$from);
 	w[!(1:nNodes %in% temp)] = 0;
-	
+
 	if(index.start == 1){
 		edges$from = as.integer(edges$from-1);
 		edges$to   = as.integer(edges$to-1);
@@ -60,9 +60,9 @@ power.iteration <- function(edges, init, prior, w, debug=3, option=1, max.iter=5
     check_type_size(edges$from, "int", nEdges);
     check_type_size(edges$to, "int", nEdges);
     check_type_size(edges$value, "double", nEdges);
-    
+
 	# The following C function is defined in src/C/pagerank.c
-	.C("power_iteration",
+	.Call("power_iteration_Call",
         out,       # OUTPUT vector: nNodes x 1
         lambda,    # OUTPUT 1x1
         num.iter,  # OUTPUT 1x1
@@ -72,15 +72,14 @@ power.iteration <- function(edges, init, prior, w, debug=3, option=1, max.iter=5
         edges$from,  # INPUT transition probability matrix: nEdges x 1 (index start from 0)
         edges$to,    # INPUT transition probability matrix: nEdges x 1 (index start from 0)
         edges$value, # INPUT transition probability matrix: nEdges x 1
-        nNodes, nEdges, as.integer(max.iter), as.double(eps), as.integer(option), 
-        as.integer(debug), # 0: no debugging.  1: check w.  2: positivity.  3: sum-up to one.
-        DUP=FALSE
+        nNodes, nEdges, as.integer(max.iter), as.double(eps), as.integer(option),
+        as.integer(debug) # 0: no debugging.  1: check w.  2: positivity.  3: sum-up to one.
     );
-    
+
 	if(num.iter >= max.iter && option == 1){
 		warning("power.iteration does not converge: maximum number of iterations reached!!");
 	}
-	
+
     return(list(eigen.vec=out, lambda=lambda, num.iter=num.iter));
 }
 
@@ -94,11 +93,10 @@ normalize.sumToOne.groupBy <- function(x, by){
 	check_type_size(x,  "double", len);
 	check_type_size(by, "int",    len);
 	out = rep(double(1), len);
-	
+
 	# The following C function is defined in src/C/util.c
-	.C("normalize_sumToOne_groupby", 
-			out, x, by, len,
-			DUP=FALSE
+	.Call("normalize_sumToOne_groupby_Call",
+			out, x, by, len
 	);
 	return(out);
 }
@@ -106,11 +104,11 @@ normalize.sumToOne.groupBy <- function(x, by){
 ###
 ### Create the edge weights for PageRank
 ###
-###		A_{ji} = fn(b0 + b1 * nPos_{ji} * (1 - (b5 + nPos_{ij}) / (b6 + n_{ij}) )^b3 
+###		A_{ji} = fn(b0 + b1 * nPos_{ji} * (1 - (b5 + nPos_{ij}) / (b6 + n_{ij}) )^b3
 ###                    - b2 * nNeg_{ji} * (    (b5 + nPos_{ij}) / (b6 + n_{ij}) )^b4
 ###              )
 ###		data = data.frame(voter, author, nPos, nNeg, nPos.rev, nNeg.rev);
-###		fn is either 'raw', 'log', 'sigmoid' 
+###		fn is either 'raw', 'log', 'sigmoid'
 ###
 generate.edges <- function(
 	data, b, fn, normalize=TRUE
@@ -161,7 +159,7 @@ eigen.arpack <- function(edges, prior, w, debug=0, max.iter=500){
 	# set w[j] = 0 if sum_i A[j,i] = 0
 	temp = unique(edges$from);
 	w[!(1:length(prior) %in% temp)] = 0;
-	
+
 	data = list(edges=edges, prior=prior, w=w, debug=debug);
 	options = igraph.arpack.default;
 	options$n = length(prior);
@@ -170,10 +168,10 @@ eigen.arpack <- function(edges, prior, w, debug=0, max.iter=500){
 	options$maxiter = max.iter;
 
 	ans = arpack(func=compute_one_step_transition, extra=data, sym=FALSE, options=options);
-	
+
 	eigen.vec = as.real(ans$vectors);
 	eigen.vec = eigen.vec / sum(eigen.vec);
-	
+
 	return(list(eigen.vec=eigen.vec, lambda=as.real(ans$values), num.iter=ans$options$iter));
 }
 

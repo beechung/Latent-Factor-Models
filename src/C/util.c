@@ -7,6 +7,7 @@
 
 
 #include <R.h>
+#include <Rinternals.h>
 #include <Rmath.h>
 #include <R_ext/Lapack.h>
 #include <R_ext/Applic.h>
@@ -58,7 +59,7 @@ void sym_eigen(const double* x, const int *nrow, double *eigen_val, double *eige
     char jobz = 'V', uplo = 'L';
     double work_size, *work;
     int i, info, lwork=-1;
-    
+
     for(i=0; i<(*nrow)*(*nrow); i++) eigen_vec[i] = x[i];
 
     F77_NAME(dsyev)(&jobz, &uplo, nrow, eigen_vec, nrow, eigen_val, &work_size, &lwork, &info);
@@ -70,6 +71,10 @@ void sym_eigen(const double* x, const int *nrow, double *eigen_val, double *eige
     if(info != 0) error("error in dsyev(...)");
 
     Free(work);
+}
+SEXP sym_eigen_Call(SEXP x, SEXP nrow, SEXP eigen_val, SEXP eigen_vec){
+  sym_eigen(MY_REAL(x), MY_INTEGER(nrow), MY_REAL(eigen_val), MY_REAL(eigen_vec));
+  return R_NilValue;
 }
 void sym_eigen2(const double* x, const int *nrow, double *eigen_val, double *eigen_vec, double *workspace, const int *workspace_size, const int *check_sym){
     char jobz = 'V', uplo = 'L';
@@ -95,9 +100,9 @@ void sym_inv_byCholesky(
 ){
     char uplo = 'L';
     int info, i, j;
-    
+
     if(*check_sym > 0) CHK_SYMMETRIC(A, *n);
-    
+
     F77_NAME(dpotrf)(&uplo, n, A, n, &info);
     if(info != 0) error("error in dpotrf(...): info=%d", info);
     F77_NAME(dpotri)(&uplo, n, A, n, &info);
@@ -117,7 +122,7 @@ void sym_inv3DA_byCholesky(
         for(int j=0; j<*n; j++)
             for(int m=0; m<*n; m++) temp[C_MAT(j,m,*n)] = A[C_3DA(i,j,m,*k,*n)];
         sym_inv_byCholesky(temp, n, check_sym);
-        
+
         for(int j=0; j<*n; j++)
             for(int m=0; m<*n; m++) invA[C_3DA(i,j,m,*k,*n)] = temp[C_MAT(j,m,*n)];
     }
@@ -127,7 +132,7 @@ void sum_margin(
     // OUTPUT
     double *ans,
     // INPUT
-    const double *A, const int *nrow, const int *ncol, 
+    const double *A, const int *nrow, const int *ncol,
     const int *side // side=1: Sum up each row and return a vector with length nrow
                     // side=2: Sum up each column and return a vector with length ncol
 ){
@@ -146,6 +151,22 @@ void sum_margin(
     }else{
         error("Unknown side=%d (please specify side=1 (for rows) or side=2 (for columns)");
     }
+}
+SEXP sum_margin_Call(
+  // OUTPUT
+  SEXP ans,
+  // INPUT
+  SEXP A, SEXP nrow, SEXP ncol,
+  SEXP side
+){
+  sum_margin(
+    // OUTPUT
+    MY_REAL(ans),
+    // INPUT
+    MY_REAL(A), MY_INTEGER(nrow), MY_INTEGER(ncol),
+    MY_INTEGER(side)
+  );
+  return R_NilValue;
 }
 
 void print_vector(const char* prefix, const double* vector, const int length){
@@ -188,9 +209,9 @@ void generateObsIndex(
 ){
     int *ind, i, j, cIndex, eIndex, oIndex;
     ind = (int*)Calloc(*nEff, int);
-    
+
     for(i=0; i<*nEff; i++) num[i] = 0;
-    
+
     for(i=0; i<*nObs; i++){
         eIndex = effIndex[i];
         if(*debug > 0){
@@ -198,19 +219,19 @@ void generateObsIndex(
         }
         num[R_VEC(eIndex)]++;
     }
-    
+
     start[0] = 1; ind[0] = 1;
     for(i=1; i<*nEff; i++){
         start[i] = start[i-1]+num[i-1];
         ind[i] = start[i];
     }
-    
+
     for(i=0; i<*nObs; i++){
         cIndex = R_VEC(effIndex[i]);
         obsIndex[R_VEC(ind[cIndex])] = i+1;
         ind[cIndex]++;
     }
-    
+
     if(*debug > 0){
         for(i=0; i<*nEff; i++){
             if(ind[i] != start[i]+num[i]) error("logical error (level 1)");
@@ -223,8 +244,32 @@ void generateObsIndex(
             }
         }
     }
-    
+
     Free(ind);
+}
+SEXP generateObsIndex_Call(
+  //OUTPUT
+  SEXP obsIndex, // E.g., consider user i
+  SEXP start,    //  y[ obsIndex[ start[i]+(0:(num[i]-1)) ] ]
+  SEXP num,      //  are the observations of user i
+  //INPUT
+  SEXP effIndex /* user or item */,
+  SEXP nObs, SEXP nEff,
+  //OTHER
+  SEXP debug
+){
+  generateObsIndex(
+    //OUTPUT
+    MY_INTEGER(obsIndex), // E.g., consider user i
+    MY_INTEGER(start),    //  y[ obsIndex[ start[i]+(0:(num[i]-1)) ] ]
+    MY_INTEGER(num),      //  are the observations of user i
+    //INPUT
+    MY_INTEGER(effIndex) /* user or item */,
+    MY_INTEGER(nObs), MY_INTEGER(nEff),
+    //OTHER
+    MY_INTEGER(debug)
+  );
+  return R_NilValue;
 }
 
 void normalizeToSumUpToOne2(double *output, const double *input, const int length){
@@ -244,6 +289,10 @@ void indexWithQuantities(int *output, int *vector, const int *length){
     for(int i=0; i<*length; i++){
         for(int j=0; j<vector[i]; j++){ output[k] = i+1; k++;}
     }
+}
+SEXP indexWithQuantities_Call(SEXP output, SEXP vector, SEXP length){
+  indexWithQuantities(MY_INTEGER(output), MY_INTEGER(vector), MY_INTEGER(length));
+  return R_NilValue;
 }
 
 /**
@@ -270,13 +319,27 @@ void selectColumn_agg_sum(
         for(int k=0; k<*nrow; k++) out[C_MAT(k,groupIndex,*nrow)] += matrix[C_MAT(k,colIndex,*nrow)] * w;
     }
 }
+SEXP selectColumn_agg_sum_Call(
+  SEXP out, SEXP nrowOut, SEXP ncolOut,
+  SEXP matrix, SEXP nrow, SEXP ncol,
+  SEXP select, SEXP groupBy, SEXP num,
+  SEXP weight, SEXP nWeights
+){
+  selectColumn_agg_sum(
+    MY_REAL(out), MY_INTEGER(nrowOut), MY_INTEGER(ncolOut),
+    MY_REAL(matrix), MY_INTEGER(nrow), MY_INTEGER(ncol),
+    MY_INTEGER(select), MY_INTEGER(groupBy), MY_INTEGER(num),
+    MY_REAL(weight), MY_INTEGER(nWeights)
+  );
+  return R_NilValue;
+}
 
 /**
  * margin = 1: each row sum up to one
  * margin = 2: each column sum up to one
  */
 void normalize_sumToOne2D(
-    double *out, const double *matrix, 
+    double *out, const double *matrix,
     const int *nrow, const int *ncol, const int *margin
 ){
     if(*margin == 1){
@@ -298,8 +361,18 @@ void normalize_sumToOne2D(
             }else{
                 for(int i=0; i<*nrow; i++) out[C_MAT(i,j,*nrow)] = 0;
             }
-        }        
+        }
     }else DIE_HERE;
+}
+SEXP normalize_sumToOne2D_Call(
+  SEXP out, SEXP matrix,
+  SEXP nrow, SEXP ncol, SEXP margin
+){
+  normalize_sumToOne2D(
+    MY_REAL(out), MY_REAL(matrix),
+    MY_INTEGER(nrow), MY_INTEGER(ncol), MY_INTEGER(margin)
+  );
+  return R_NilValue;
 }
 
 /**
@@ -325,14 +398,31 @@ void normalize_sumToOne_groupby(
 
 	Free(sum);
 }
-
+SEXP normalize_sumToOne_groupby_Call(
+  SEXP output, SEXP input, SEXP by,
+  SEXP length
+){
+  normalize_sumToOne_groupby(
+    MY_REAL(output), MY_REAL(input), MY_INTEGER(by),
+    MY_INTEGER(length)
+  );
+  return R_NilValue;
+}
 
 void print_doublePointer(double *pointer){
     Rprintf("Address: %p\n",pointer);
 }
+SEXP print_doublePointer_Call(SEXP pointer){
+  print_doublePointer(MY_REAL(pointer));
+  return R_NilValue;
+}
 
 void print_intPointer(int *pointer){
     Rprintf("Address: %p\n",pointer);
+}
+SEXP print_intPointer_Call(SEXP pointer){
+  print_intPointer(MY_INTEGER(pointer));
+  return R_NilValue;
 }
 
 void get_doublePointer(double *pointer, int *address){
@@ -366,6 +456,30 @@ void compute_uBv_dense(
             }
         }
     }
+}
+SEXP compute_uBv_dense_Call(
+  // Output
+  SEXP score, // nObs x 1
+  // Input
+  SEXP userIndex, SEXP itemIndex, // Both nObs x 1; index starts from 1 (not 0)
+  SEXP u, // nUsers x nUserFactors
+  SEXP B, // nUserFeatures x nItemFeatures
+  SEXP v, // nItems x nItemFactors
+  SEXP nObs, SEXP nUsers, SEXP nItems,
+  SEXP nUserFactors, SEXP nItemFactors
+){
+  compute_uBv_dense(
+    // Output
+    MY_REAL(score), // nObs x 1
+    // Input
+    MY_INTEGER(userIndex), MY_INTEGER(itemIndex), // Both nObs x 1; index starts from 1 (not 0)
+    MY_REAL(u), // nUsers x nUserFactors
+    MY_REAL(B), // nUserFeatures x nItemFeatures
+    MY_REAL(v), // nItems x nItemFactors
+    MY_INTEGER(nObs), MY_INTEGER(nUsers), MY_INTEGER(nItems),
+    MY_INTEGER(nUserFactors), MY_INTEGER(nItemFactors)
+  );
+  return R_NilValue;
 }
 
 inline double compute_szuBv_c_single_dense(
@@ -1050,6 +1164,46 @@ void perItem_online_factor_batch_predict(
 	Free(prior_var);
 	Free(num);
 }
+SEXP perItem_online_factor_batch_predict_Call(
+  SEXP prediction, // nObs x 1 (output)
+  SEXP batch_id,      // nObs x 1 (output, ID starts from 1)
+  SEXP beta,       // nItems x nBatches (output)
+  SEXP v,          // nItems x nBatches x nFactors (output)
+  SEXP y,    // nObs x 1 (response)
+  SEXP userIndex,  // nObs x 1 (index start from 1)
+  SEXP itemIndex,  // nObs x 1 (index start from 1)
+  SEXP u,       // nUsers x nFactors
+  SEXP offset,  // nObs x 1
+  SEXP beta_prior_mean, // nItems x 1
+  SEXP beta_prior_var,  // nItems x 1
+  SEXP v_prior_mean, // nItems x nFactors
+  SEXP v_prior_var,  // nItems x 1 or nItems x nFactors x nFactors
+  SEXP discount,     // 1x1 (0 <= discount <= 1)
+  SEXP nObs, SEXP nUsers, SEXP nItems,
+  SEXP nFactors, SEXP nBatches, SEXP nObsPerBatch, SEXP v_prior_var_length,
+  SEXP output_Factors, SEXP debug, SEXP verbose
+){
+  perItem_online_factor_batch_predict(
+    MY_REAL(prediction), // nObs x 1 (output)
+    MY_INTEGER(batch_id),      // nObs x 1 (output, ID starts from 1)
+    MY_REAL(beta),       // nItems x nBatches (output)
+    MY_REAL(v),          // nItems x nBatches x nFactors (output)
+    MY_REAL(y),    // nObs x 1 (response)
+    MY_INTEGER(userIndex),  // nObs x 1 (index start from 1)
+    MY_INTEGER(itemIndex),  // nObs x 1 (index start from 1)
+    MY_REAL(u),       // nUsers x nFactors
+    MY_REAL(offset),  // nObs x 1
+    MY_REAL(beta_prior_mean), // nItems x 1
+    MY_REAL(beta_prior_var),  // nItems x 1
+    MY_REAL(v_prior_mean), // nItems x nFactors
+    MY_REAL(v_prior_var),  // nItems x 1 or nItems x nFactors x nFactors
+    MY_REAL(discount),     // 1x1 (0 <= discount <= 1)
+    MY_INTEGER(nObs), MY_INTEGER(nUsers), MY_INTEGER(nItems),
+    MY_INTEGER(nFactors), MY_INTEGER(nBatches), MY_INTEGER(nObsPerBatch), MY_INTEGER(v_prior_var_length),
+    MY_INTEGER(output_Factors), MY_INTEGER(debug), MY_INTEGER(verbose)
+  );
+  return R_NilValue;
+}
 
 /**
  * out[k] = t(b) %*% A[k,,] %*% b
@@ -1070,6 +1224,24 @@ void compute_bAb_3DA(
     		}
     	}
     }
+}
+SEXP compute_bAb_3DA_Call(
+  // Output
+  SEXP out, // nCases x 1
+  // Input
+  SEXP b, // nDim
+  SEXP A, // nCases x nDim x nDim
+  SEXP nCases, SEXP nDim
+){
+  compute_bAb_3DA(
+    // Output
+    MY_REAL(out), // nCases x 1
+    // Input
+    MY_REAL(b), // nDim
+    MY_REAL(A), // nCases x nDim x nDim
+    MY_INTEGER(nCases), MY_INTEGER(nDim)
+  );
+  return R_NilValue;
 }
 
 /**
@@ -1092,6 +1264,24 @@ void compute_Ab_3DA(
     		out[C_MAT(k,i,*nCases)] = ans;
     	}
     }
+}
+SEXP compute_Ab_3DA_Call(
+  // Output
+  SEXP out, // nCases x nDim
+  // Input
+  SEXP b, // nDim
+  SEXP A, // nCases x nDim x nDim
+  SEXP nCases, SEXP nDim
+){
+  compute_Ab_3DA(
+    // Output
+    MY_REAL(out), // nCases x nDim
+    // Input
+    MY_REAL(b), // nDim
+    MY_REAL(A), // nCases x nDim x nDim
+    MY_INTEGER(nCases), MY_INTEGER(nDim)
+  );
+  return R_NilValue;
 }
 
 /**
@@ -1129,6 +1319,34 @@ void computeMultiResponseUV(
 		}
 		output[m] = ans;
 	}
+}
+SEXP computeMultiResponseUV_Call(
+  // OUTPUT
+  SEXP output,
+  // INPUT
+  SEXP u, // nSrcNodes x nFactors x nSrcContexts
+  SEXP v, // nDstNodes x nFactors x nDstContexts
+  SEXP src_id,  SEXP dst_id, // nObs x 1
+  SEXP src_ctx, SEXP dst_ctx, // nObs x 1
+  SEXP nObs_, SEXP nFactors_,
+  SEXP nSrcNodes_, SEXP nSrcContexts_,
+  SEXP nDstNodes_, SEXP nDstContexts_,
+  SEXP debug_
+){
+  computeMultiResponseUV(
+    // OUTPUT
+    MY_REAL(output),
+    // INPUT
+    MY_REAL(u), // nSrcNodes x nFactors x nSrcContexts
+    MY_REAL(v), // nDstNodes x nFactors x nDstContexts
+    MY_INTEGER(src_id),  MY_INTEGER(dst_id), // nObs x 1
+    MY_INTEGER(src_ctx), MY_INTEGER(dst_ctx), // nObs x 1
+    MY_INTEGER(nObs_), MY_INTEGER(nFactors_),
+    MY_INTEGER(nSrcNodes_), MY_INTEGER(nSrcContexts_),
+    MY_INTEGER(nDstNodes_), MY_INTEGER(nDstContexts_),
+    MY_INTEGER(debug_)
+  );
+  return R_NilValue;
 }
 
 /**

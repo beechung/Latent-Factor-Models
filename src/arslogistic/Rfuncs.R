@@ -57,6 +57,10 @@ getlgt <- function(x,id,beta,y,X,mbeta,sigb){
 }
 
 
+###
+### betaprior: prior mean vector
+### vprior:    prior variance
+###
 arslgt <- function(obsid,featval,nfobs,y,intercept=F,betaprior=NULL,vprior=1.0,vprior.intercept=NULL,
                    nsamp=500,burnin=100,erange=10.0,verbose=T,verboseC=0,isC=T){
 

@@ -11,6 +11,7 @@ R CMD SHLIB C/util.c C/factor_model_util.c C/factor_model_multicontext.c -o C/c_
 */
 
 #include <R.h>
+#include <Rinternals.h>
 #include <Rmath.h>
 #include <R_ext/Lapack.h>
 #include <stdio.h>
@@ -124,7 +125,7 @@ void MCEM_EStep_multicontext(
     // OTHER
     const int* debug,  const int* verbose
 ){
-    int from_i, to_j, node_k, edge_k, alpha_k, beta_k;
+    int from_i, to_j, node_k, alpha_k, beta_k;
     const int one = 1;
     int verbose_nextLevel = (*verbose) - 1;
     clock_t t_begin_in=0;
@@ -442,4 +443,91 @@ void MCEM_EStep_multicontext(
     if(nBetaContexts  > 1) Free( beta_global_sum);
 
     if(*verbose > 0) Rprintf("END   MCEM_EStep_multicontext.C\n");
+}
+
+
+/**
+ * Support the .Call interface
+ */
+SEXP MCEM_EStep_multicontext_Call(
+    // INPUT (initial factor values) & OUTPUT (Monte Carlo mean of factor values)
+    SEXP alpha_mean/*nAlpha x nAlphaContexts*/,      SEXP beta_mean/*nBeta x nBetaContexts*/,
+    SEXP gamma_mean/*nGamma x 1*/,
+    SEXP u_mean/*nrowU x nFactors*/,                 SEXP v_mean/*nrowV x nFactors*/,
+    SEXP w_mean/*nEdgeContexts x nFactors*/,
+    // OUTPUT
+    SEXP alpha_global_mean/*nAlpha x 1*/,            SEXP beta_global_mean/*nBeta x 1*/,
+    SEXP fScore_mean/*nObs x 1*/,                    SEXP fScore_outputVar/*nObs x 1*/,
+    SEXP alpha_outputVar/*nAlpha x nAlphaContexts*/, SEXP alpha_global_outputVar/*nAlpha x 1*/,
+    SEXP alpha_outputCov/*nAlpha x nAlphaContexts*/,
+    SEXP beta_outputVar/*nBeta x nBetaContexts*/,    SEXP beta_global_outputVar/*nBeta x 1*/,
+    SEXP beta_outputCov/*nBeta x nBetaContexts*/,
+    SEXP gamma_outputVar/*nGamma x 1*/,
+    SEXP u_outputVar/*nrowU x nFactors*/,            SEXP v_outputVar/*nrowV x nFactors*/,
+    SEXP w_outputVar/*nEdgeContexts x nFactors*/,
+    SEXP test_fScore_mean/*nTestObs x 1*/,           SEXP test_fScore_var/*nTestObs x 1*/,
+    // INPUT
+    SEXP numSamples,                        SEXP numBurnIn,
+    SEXP edgeFrom/*nObs x 1*/,              SEXP edgeTo/*nObs x 1*/,
+    SEXP alphaContext/*nObs x 1*/,          SEXP betaContext/*nObs x 1*/,
+    SEXP edgeContext/*nObs x 1*/,
+    SEXP q/*nAlphaContexts x 1*/,           SEXP r/*nBetaContexts x 1*/,
+    SEXP obs/*nObs x 1*/,
+    SEXP alpha_prior/*0 or nAlpha or nAlpha x nAlphaContexts*/,
+    SEXP beta_prior /*0 or nBeta  or  nBeta x nBetaContexts*/,
+    SEXP gamma_prior/*nGamma x 1*/,
+    SEXP u_prior/*nrowU x nFactors*/,       SEXP v_prior/*nrowV x nFactors*/,
+    SEXP w_prior/*nEdgeContexts x nFactors*/,
+    SEXP var_obs,  SEXP var_alpha,          SEXP var_alpha_global,
+    SEXP var_beta, SEXP var_beta_global,    SEXP var_gamma,
+    SEXP var_u, SEXP var_v,                 SEXP var_w,
+    SEXP test_edgeFrom/*nTestObs x 1*/,     SEXP test_edgeTo/*nTestObs x 1*/,
+    SEXP test_alphaContext/*nTestObs x 1*/, SEXP test_betaContext/*nTestObs x 1*/,
+    SEXP test_edgeContext/*nTestObs x 1*/,
+    SEXP dim /*22 x 1*/,                    SEXP nDim /*must be 22*/,
+    // OTHER
+    SEXP debug,  SEXP verbose
+){
+
+  MCEM_EStep_multicontext(
+      // INPUT (initial factor values) & OUTPUT (Monte Carlo mean of factor values)
+      MY_REAL(alpha_mean), MY_REAL(beta_mean),
+      MY_REAL(gamma_mean),
+      MY_REAL(u_mean),     MY_REAL(v_mean),
+      MY_REAL(w_mean),
+      // OUTPUT
+      MY_REAL(alpha_global_mean), MY_REAL(beta_global_mean),
+      MY_REAL(fScore_mean),       MY_REAL(fScore_outputVar),
+      MY_REAL(alpha_outputVar),   MY_REAL(alpha_global_outputVar),
+      MY_REAL(alpha_outputCov),
+      MY_REAL(beta_outputVar),    MY_REAL(beta_global_outputVar),
+      MY_REAL(beta_outputCov),
+      MY_REAL(gamma_outputVar),
+      MY_REAL(u_outputVar),       MY_REAL(v_outputVar),
+      MY_REAL(w_outputVar),
+      MY_REAL(test_fScore_mean),  MY_REAL(test_fScore_var),
+      // INPUT
+      MY_INTEGER(numSamples),                  MY_INTEGER(numBurnIn),
+      MY_INTEGER(edgeFrom),        MY_INTEGER(edgeTo),
+      MY_INTEGER(alphaContext),    MY_INTEGER(betaContext),
+      MY_INTEGER(edgeContext),
+      MY_REAL(q), MY_REAL(r),
+      MY_REAL(obs),
+      MY_REAL(alpha_prior),
+      MY_REAL(beta_prior),
+      MY_REAL(gamma_prior),
+      MY_REAL(u_prior),  MY_REAL(v_prior),
+      MY_REAL(w_prior),
+      MY_REAL(var_obs),  MY_REAL(var_alpha),       MY_REAL(var_alpha_global),
+      MY_REAL(var_beta), MY_REAL(var_beta_global), MY_REAL(var_gamma),
+      MY_REAL(var_u),    MY_REAL(var_v),           MY_REAL(var_w),
+      MY_INTEGER(test_edgeFrom),     MY_INTEGER(test_edgeTo),
+      MY_INTEGER(test_alphaContext), MY_INTEGER(test_betaContext),
+      MY_INTEGER(test_edgeContext),
+      MY_INTEGER(dim),      MY_INTEGER(nDim),
+      // OTHER
+      MY_INTEGER(debug),  MY_INTEGER(verbose)
+  );
+
+  return R_NilValue;
 }
