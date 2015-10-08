@@ -76,8 +76,8 @@ fit.forMainEffect.glmnet<- function(
     target, feature, ...
 )
 {
-                cat("MainEffect for ",dim(target), "and feature dim = ", dim(feature) ,"\n");
-            if(length(target) != nrow(feature)) stop("length(target) != nrow(feature)");
+            cat("MainEffect for ",dim(target), "and feature dim = ", dim(feature) ,"\n");
+            if(length(target) != nrow(feature)) stop("length(target) != nrow(feature): ",length(target)," vs. ",nrow(feature));
 #           if(!is.matrix(feature)) stop("feature has to be a matrix");
             #cat("now run glmnet\n");
             if (sum(abs(feature[,1]-1))==0)
@@ -103,7 +103,7 @@ fit.forMainEffect.glmnet<- function(
             fitted.values = feature%*%output$coef;
             output$rss = sum((fitted.values - target)^2);
 
-                return(output);
+            return(output);
 }
 fit.forFactors.glmnet <- function(
     target, feature, ...
@@ -449,14 +449,29 @@ MC_MStep_logistic_arscid <- function(
       if(all(x == 0)){
         fit = list(fitted.values=0, coefficients=rep(0,ncol(x)));
       }else{
-        #fit = glm(y ~ x -1, family=binomial(link = "logit"),offset=o, model=F);
-        # fit as covariate
-        nobs = length(x)
-        x = cbind(matrix(x,length(x),1), rep(0,length(x)))
-
-        fit = bayesglm(y ~ x - 1, family=binomial(link="logit"), offset=o ,model=F, prior.scale = 5);
-
-        fit$coef = fit$coef[1]; fit$coefficients=fit$coefficients[1]; x = matrix(x[,1],nobs,1)
+        if(use.glmnet){
+            if (all(x[,1] == 1))
+            {
+                x.new = Matrix(x[,2:ncol(x)],sparse=TRUE);
+            } else {
+                stop("feature should have a constant term for intercept");
+            }
+            fit0 = cv.glmnet(x=x.new, y=y, offset=o, nfolds=3, family="binomial");
+            lambdaind = which(fit0$lambda==fit0$lambda.min);
+            a0 = fit0$glmnet.fit$a0[lambdaind];
+            coef = fit0$glmnet.fit$beta[,lambdaind];
+            fit = list();
+            fit$coefficients = as.vector(c(a0,coef));            
+        } else {
+            #fit = glm(y ~ x -1, family=binomial(link = "logit"),offset=o, model=F);
+            # fit as covariate
+            nobs = length(x)
+            x = cbind(matrix(x,length(x),1), rep(0,length(x)))
+            
+            fit = bayesglm(y ~ x - 1, family=binomial(link="logit"), offset=o ,model=F, prior.scale = 5);
+            
+            fit$coef = fit$coef[1]; fit$coefficients=fit$coefficients[1]; x = matrix(x[,1],nobs,1)
+        }
       }
       #if(length(fit$coef) != ncol(x)) stop("length(fit$coef) != ncol(x)");
       output$b = fit$coefficients;
@@ -475,25 +490,21 @@ MC_MStep_logistic_arscid <- function(
 
     #If fit.regression=T do the normal thing, if not just find vars
     if(fit.regression){
-    # determin g0 and var_alpha
-      if (use.glmnet==F  )
-        {
+      # determin g0 and var_alpha
+      if (use.glmnet==F  ) {
           fit = fit.forMainEffect.bayesglm(alpha, w, lm=lm,...);
-        } else
-      {
+      } else {
         fit = fit.forMainEffect.glmnet(alpha, w, ...);
       }
       output$g0 = fit$coef;
       output$var_alpha = (sum(fit$rss) + alpha.sumvar) / nUsers;
 
-    # determin d0 and var_beta ( and b if in heirarchy )
+      # determin d0 and var_beta ( and b if in heirarchy )
       if (beta.int) z2 = cbind(1,z) else z2=z
 
-      if (use.glmnet==F    )
-        {
+      if (use.glmnet==F    ) {
           fit = fit.forMainEffect.bayesglm(beta, z2, lm=lm,...);
-        } else
-      {
+      } else {
         fit = fit.forMainEffect.glmnet(beta, z2, ...);
       }
 

@@ -1,0 +1,4 @@
+
+(1) Download arms_method.zip from http://www1.maths.leeds.ac.uk/~wally.gilks/adaptive.rejection/web_page/Welcome.html
+    (look for C code)
+(2) Unzip arms_method.zip and put arms.c and arms.h into src/arslogistic

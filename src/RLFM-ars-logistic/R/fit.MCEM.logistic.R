@@ -8,12 +8,98 @@
 ###
 ### Initialization of parameters should be done before calling this method.
 ###
-### See README.txt for naming convention and other details
+### Input:
+###   data.train$obs     = data.frame(src.id, dst.id, y);
+###                          src.id: source node (user) ID
+###                          dst.id: destination node (item) ID
+###   data.train$feature = list(x_obs, x_src, x_dst);
+###                          x_obs (nObs x nObsFeatures): observation features
+###                          x_src (nSrcNodes x nSrcFeatures): features of source nodes (users)
+###                          x_dst (nDstNodes x nDstFeatures): features of destination nodes (items)
+###   init.model$factor  = list(alpha, beta, u, v);
+###   init.model$param   = list(b, g0, d0, G, D, var_alpha, var_beta, var_u, var_v);
 ###
 ### Output:
 ###   output$est.highestCDL: Parameter estimates with the highest complete data likelihood (CDL)
 ###   output$est.last:       Parameter estimates at the end of the last iteration
 ###
+fit.ARS.logistic <- function(
+    nIter,      # Number of EM iterations
+    nSamples, nBurnin,   # Number of samples and burnin drawn in each E-step: could be a vector of size nIter.
+    data.train, # Training data = list(obs, feature)
+    nFactors,   # Number of factors (i.e., number of dimensions of u)
+    init.model=NULL, # Initial model = list(factor, param). Set to NULL to use the default.
+    doMstep=TRUE,
+    # initialization parameters
+    var_alpha=1, var_beta=1, var_v=1, var_u=1,
+    # others
+    out.level=0,  # out.level=1: Save the parameter values out.dir/est.highestCDL and out.dir/est.last
+    out.dir=NULL, # out.level=2: Save the parameter values of each iteration i to out.dir/est.i
+    out.append=FALSE,
+    debug=0,      # Set to 0 to disable internal sanity checking; Set to 10 for most detailed sanity checking
+    verbose=0,    # Set to 0 to disable console output; Set to 10 to print everything to the console
+    use.C=TRUE,   # Whether to use the C implementation
+    use.C.EStep=TRUE, # Whether to use the C implementation of the E-step (for backward compatibility)
+    print.path=FALSE, # When using R Estep, shall we print sample path of a few random effects?
+    delta1=.001,
+    use.glmnet=TRUE,
+    # ARS parameters
+    ars_ninit=3, ars_qcent=c(5.0,50.0,95.0), # number of initial points and the quantiles of the initial points
+    ars_xl=-5, ars_xu=5, # lower bound and upper bound of ARS samples
+    ars_alpha=0.5,
+    fit.ars.alpha=FALSE, # whether we want to fit ars_alpha in the M-step
+    fit.regression=TRUE, # do we want to update the regression parameters?
+    beta.int=FALSE, # do we want to put the intercept in the beta prior?
+    center=TRUE, # center the random effects at every iteration of the ARS?
+    main.effects=FALSE, # only fix the main effects. Leave u and v set to 0.
+    ...             # Additional parameters passing into the regression functions (e.g., bayesglm)
+){
+    obs=NULL; feature=NULL;
+    if(!is.null(data.train)){
+        if(!all(c("obs", "feature") %in% names(data.train))) stop("Please check input parameter 'data.train' when calling function fit.multicontext or run.multicontext: data.train$obs and data.train$feature cannot be NULL");
+        obs=data.train$obs;
+        feature=data.train$feature;
+        if(!all(c("src.id", "dst.id", "y") %in% names(obs))) stop("Input parameter data.train$obs must have the following columns: src.id, dst.id, y");
+        if(!all(c("x_obs", "x_src", "x_dst") %in% names(feature))) stop("Input parameter data.train$feature must be a list of x_obs, x_src, x_dst");
+    }else{
+        stop("Please specify data.train!");
+    }
+    
+    if(is.null(init.model)){
+        init.model = init.simple.random(
+                obs=obs, feature=feature,
+                nFactors=nFactors, has.u=TRUE, has.gamma=FALSE, is.logistic=TRUE,
+                var_alpha=var_alpha, var_beta=var_beta, var_v=var_v, var_u=var_u
+        );
+        init.model$param$xi = NULL;
+    }
+    factor = init.model$factor;
+    param  = init.model$param;
+    if(!all(c("alpha", "beta", "u", "v") %in% names(factor))) stop("init.model$factor must be a list of alpha, beta, u, v");
+    if(!all(c("b", "g0", "d0", "G", "D", "var_alpha", "var_beta", "var_u", "var_v") %in% names(param))) stop("init.model$param must be a list of b, g0, d0, G, D, var_alpha, var_beta, var_u, var_v");
+    
+    output = fit.MCEM.logistic(
+            nIter=nIter,
+            doMstep=doMstep,
+            nSamples=nSamples, nBurnin=nBurnin,
+            user=obs$src.id, item=obs$dst.id, y=obs$y,
+            x=feature$x_obs, w=feature$x_src, z=feature$x_dst,
+            alpha=factor$alpha, beta=factor$beta, u=factor$u, v=factor$v,
+            b=param$b, g0=param$g0, G=param$G, d0=param$d0, D=param$D,
+            var_alpha=param$var_alpha, var_beta=param$var_beta, var_u=param$var_u, var_v=param$var_v,
+            out.level=out.level, out.dir=out.dir, out.append=out.append,
+            debug=debug, verbose=verbose, use.C=use.C, use.C.EStep=use.C.EStep,
+            print.path=print.path, delta1=delta1, use.glmnet=use.glmnet,
+            ars_ninit=ars_ninit, ars_qcent=ars_qcent,
+            ars_xl=ars_xl, ars_xu=ars_xu, ars_alpha=ars_alpha,
+            fit.ars.alpha=fit.ars.alpha, fit.regression=fit.regression,
+            beta.int=beta.int, center=center, main.effects=main.effects,
+            ...
+    );
+    
+    return(output);
+}
+
 fit.MCEM.logistic <- function(
     nIter,      # Number of EM iterations
     doMstep,
@@ -69,7 +155,7 @@ fit.MCEM.logistic <- function(
 
     LL = rep(NA, nIter+1); # LL records the logLikelihood of each iteration
 #    bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
-                bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
+    bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
     LL[1] = bestLL;
     
     if (length(var_u)==1) var_u = rep(var_u,nFactors);
@@ -133,7 +219,7 @@ fit.MCEM.logistic <- function(
     begin.time = proc.time();
 
     for(iter in 1:nIter){
-          gc(verbose=T);
+         # gc(verbose=T);
 
         if(verbose >= 2){
             cat("---------------------------------------------------------\n",
@@ -184,8 +270,8 @@ fit.MCEM.logistic <- function(
         time.used = proc.time() - b.time;
         time.used.1 = time.used;
         if(verbose >= 2){
-#    ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
-                ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
+            #    ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
+            ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha=ars_alpha, beta.int=F, debug=debug, use.C=use.C.EStep);
             cat("end   E-STEP (logLikelihood = ",ll," + constant,  used ",time.used[3]," sec)\n",
                 "start M-STEP\n",sep="");
         }
@@ -202,81 +288,78 @@ fit.MCEM.logistic <- function(
         Gold <- G;        var_uold <- var_u;
         d0old <- d0;      var_betaold <- var_beta;
         Dold <- D;        var_vold <-  var_v;
-    if(doMstep==1){
-                gc(verbose=T);
-        mc_m = MC_MStep_logistic_arscid(
-            user, item, y, x, b, w, z, o,
-            alpha, mc_e$alpha.sumvar, beta, mc_e$beta.sumvar,
-            u, mc_e$u.sumvar, v, mc_e$v.sumvar, debug, use.lm,
-            use.glmnet, fit.ars.alpha, fit.regression, beta.int,
-            main.effects, ...
-        );
+        if(doMstep==1){
+                # gc(verbose=T);
+            mc_m = MC_MStep_logistic_arscid(
+                user, item, y, x, b, w, z, o,
+                alpha=alpha, alpha.sumvar=mc_e$alpha.sumvar, beta=beta, beta.sumvar=mc_e$beta.sumvar,
+                u=u, u.sumvar=mc_e$u.sumvar, v=v, v.sumvar=mc_e$v.sumvar,
+                debug=debug, lm=use.lm,
+                use.glmnet=use.glmnet, fit.ars.alpha=fit.ars.alpha, 
+                fit.regression=fit.regression, beta.int=beta.int,
+                main.effects=main.effects, ...
+            );
 
-                if (fit.ars.alpha)
-                {
-                        b  = mc_m$b;
-                        ars_alpha = mc_m$ars_alpha;
-                }
-        if (fit.regression)
-        {
-          g0 = mc_m$g0;
-          G  = mc_m$G;
-          d0 = mc_m$d0;
-          D  = mc_m$D;
-        }
-        if (beta.int)
-          {
-            d0[1] = mc_m$d0[1];
-          }
-        var_alpha = mc_m$var_alpha;
-        var_u     = mc_m$var_u;
-        var_v     = mc_m$var_v;
-        var_beta  = mc_m$var_beta;
-        b = mc_m$b;
+            if (fit.ars.alpha) {
+                b  = mc_m$b;
+                ars_alpha = mc_m$ars_alpha;
+            }
+            if (fit.regression) {
+                g0 = mc_m$g0;
+                G  = mc_m$G;
+                d0 = mc_m$d0;
+                D  = mc_m$D;
+            }
+            if (beta.int) {
+                d0[1] = mc_m$d0[1];
+            }
+            var_alpha = mc_m$var_alpha;
+            var_u     = mc_m$var_u;
+            var_v     = mc_m$var_v;
+            var_beta  = mc_m$var_beta;
+            b = mc_m$b;
 
-        if (main.effects)
-          {
-            G = matrix(0, nrow=ncol(w), ncol=nFactors)
-            D = matrix(0, nrow=ncol(z), ncol=nFactors)
-            var_u = rep(1,nFactors)
-            var_v = rep(1,nFactors)
+            if (main.effects) {
+                G = matrix(0, nrow=ncol(w), ncol=nFactors)
+                D = matrix(0, nrow=ncol(z), ncol=nFactors)
+                var_u = rep(1,nFactors)
+                var_v = rep(1,nFactors)
           }
         }
-	# Order G, D, u and v
-	ind = order(var_v);
-	var_u = var_u[ind];
-	var_v = var_v[ind];
-	G = G[,ind];
-	D = D[,ind];
-	u = u[,ind];
-	v = v[,ind];
+    	# Order G, D, u and v
+    	ind = order(var_v);
+    	var_u = var_u[ind];
+    	var_v = var_v[ind];
+    	G = G[,ind];
+    	D = D[,ind];
+    	u = u[,ind];
+    	v = v[,ind];
 
         if(verbose > 0){
           r <- dim(D)[2]
-                  cat("var_alpha=",var_alpha,"\n");
-                  cat("var_beta=",var_beta,"\n");
-                  cat("var_u=",var_u,"\n");
-                  cat("var_v=",var_v,"\n");
-                  cat("b=",b,"\n");
-                  if(beta.int) cat("mean(beta)=",mean(beta),"\n")
-                  #cat("Alpha for logistic spline = ",ars_alpha,"\n");
-                  cat("bdiff =",max(abs(b-bold)/(abs(bold) + delta1)),"\n")
-                  cat("g0diff=",max(abs(g0 - g0old)/(abs(g0old) + delta1)),"\n")
-                  cat("d0diff=",max(abs(d0 - d0old)/(abs(d0old) + delta1)),"\n")
-                  cat("varudiff=",max(abs(var_u*var_v - var_uold*var_vold )/(abs(var_uold*var_vold) + delta1)),"\n")
-                  cat("varmaineffectsdiff=",max(abs(var_alpha*var_beta - var_alphaold*var_betaold )/(abs(var_alphaold*var_betaold) + delta1)),"\n")
-          if(!main.effects)
-            {
+          cat("var_alpha=",var_alpha,"\n");
+          cat("var_beta=",var_beta,"\n");
+          cat("var_u=",var_u,"\n");
+          cat("var_v=",var_v,"\n");
+          cat("b=",b,"\n");
+          if(beta.int) cat("mean(beta)=",mean(beta),"\n")
+          #cat("Alpha for logistic spline = ",ars_alpha,"\n");
+          cat("bdiff =",max(abs(b-bold)/(abs(bold) + delta1)),"\n")
+          cat("g0diff=",max(abs(g0 - g0old)/(abs(g0old) + delta1)),"\n")
+          cat("d0diff=",max(abs(d0 - d0old)/(abs(d0old) + delta1)),"\n")
+          cat("varudiff=",max(abs(var_u*var_v - var_uold*var_vold )/(abs(var_uold*var_vold) + delta1)),"\n")
+          cat("varmaineffectsdiff=",max(abs(var_alpha*var_beta - var_alphaold*var_betaold )/(abs(var_alphaold*var_betaold) + delta1)),"\n")
+          if(!main.effects) {
               trGold <- sum(svd(Gold)$d); trG <- sum(svd(G)$d);trDold <- sum(svd(Dold)$d); trD <- sum(svd(D)$d)
               cat("G0diff=",max(abs(trG - trGold)/(abs(trGold) + delta1)),"\n")
               cat("D0diff=",max(abs(trD - trDold)/(abs(trDold) + delta1)),"\n")
-            }
-          o2 = o+b; ep = exp(o2)/(1+exp(o2))
+          }
+          o2 = x %*% b + o; ep = exp(o2)/(1+exp(o2))
           cat("E(P(click)) = ", mean(ep), "\n")
         }
        #LL[iter+1] = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
 
-                LL[iter+1] = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
+        LL[iter+1] = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
 
         time.used = proc.time() - b.time;
         time.used.2 = time.used;

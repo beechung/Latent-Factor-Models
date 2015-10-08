@@ -14,6 +14,101 @@ double logexp(double x){
   return ans;
 }
 
+double lgtsplinefn(double b, void *regressionProblem){
+  REGS *problem; // WW specifies the regression problem
+  int i;
+  double sum, etanew, a, v, earg, p, alpha;
+  problem = (REGS*)regressionProblem;
+  alpha = problem->alpha;
+  sum = 0.0;
+
+  for(i=1;i <= problem->nobs;++i){
+    etanew = problem->eta[R_VEC(i)] +
+             problem->X[R_MAT(i,problem->id,problem->nobs)] * (b - problem->betacurr[R_VEC(problem->id)]);
+    if(etanew > 0.0){
+      earg = exp(-2.0 * alpha * etanew);
+      p = 2.0*alpha - 1.0 + 2.0*(1.0-alpha)/(1.0+earg);
+    } else {
+      earg = exp(2.0*(1-alpha)*etanew);
+      p = 2.0*alpha*earg/(1.0 + earg);
+    }
+    if(problem->Y[R_VEC(i)] > 0) sum += log(p); else sum += log(1-p);
+  }
+  a =(b - problem->beta0[R_VEC(problem->id)]);
+  v = problem->varbeta[R_VEC(problem->id)];
+  sum -= .5*a*a/v;
+  return sum;
+}
+
+void print_REGS(REGS* problem){
+  Rprintf("  Regression Problem (REGS object):\n");
+  Rprintf("    betacurr[%d]=%f, beta0[%d]=%f, varbeta[%d]=%f\n", problem->id, problem->betacurr[R_VEC(problem->id)], problem->id, problem->beta0[R_VEC(problem->id)], problem->id, problem->varbeta[R_VEC(problem->id)]);
+  for(int i=1;i <= problem->nobs; ++i){
+    Rprintf("    y[%d]=%f, eta[%d]=%f, X[%d,%d]=%f\n", i, problem->Y[R_VEC(i)], i, problem->eta[R_VEC(i)], i, problem->id, problem->X[R_MAT(i,problem->id,problem->nobs)]);
+  }
+}
+
+// See the arsspline.h for documentation of this function
+void ARSLOGISTICSPLINE(
+  const double *offset, double *beta_mean, double *beta_var,
+  double *X, double *y, const int *nFactors, const int *nObs,
+  double *beta_sample, const double *qcent, const int *ncent,
+  const int *ninit, const double *x_lower, const double *x_upper,
+  double *x_init, const double *alpha, int *neval
+){
+  double xsamp[1], convex, lin, XL, XU, *XI, *eta, *xcent;
+  int npoint, nsamp, i, j, flag, count, id;
+  REGS R;
+
+  if((*ncent) != (*ninit)){ error("ERROR in ARS: ncent (%d) != ninit (%d)",*ncent,*ninit); }
+
+  convex=1.0; npoint=500; nsamp=1; flag=1; count=0;
+  XL = *x_lower; XU= *x_upper;
+  eta = (double*)Calloc(*nObs,double);
+  XI = (double*)Calloc(*ninit,double);
+  xcent = (double*)Calloc(*ncent,double);
+
+  // initializing eta
+  for(i = 1; i <= *nObs; ++i){
+    eta[R_VEC(i)] = offset[R_VEC(i)];
+    lin = 0.0;
+    for(j = 1; j <= *nFactors; ++j){
+      lin += X[R_MAT(i,j,*nObs)] * beta_sample[R_VEC(j)];
+    }
+    eta[R_VEC(i)] += lin;
+  }
+
+  R.eta = eta; R.Y=y; R.X=X; R.betacurr=beta_sample;
+  R.beta0 = beta_mean; R.varbeta=beta_var; R.nobs=*nObs; R.alpha=*alpha;
+
+  for(j = 1; j <= *nFactors; ++j){
+    R.id = j;
+    for(i = 1; i <= *ninit; ++i) XI[R_VEC(i)] = x_init[R_VEC((*ninit)*(j-1)+i)];
+
+    flag = arms(XI, *ninit, &XL, &XU, lgtsplinefn, &R, &convex, npoint, 0,
+    		    &beta_sample[R_VEC(j)], xsamp, nsamp, qcent, xcent, *ncent, &neval[R_VEC(j)]);
+
+    if(flag > 0){ error("Error in ARS: error code = %d (returned from arms)",flag); }
+    if(ISNAN(xsamp[0])){
+      Rprintf("ARS returns NaN (flag=%d):  lower=%f, upper=%f, convex=%f, npoint=%d\n", flag, XL, XU, convex, npoint);
+      Rprintf("  beta_sample=%f, neval=%d\n", beta_sample[R_VEC(j)], neval[R_VEC(j)]);
+      Rprintf("  XI ="); for(i = 0; i<*ninit; i++) Rprintf(" %f", XI[i]); Rprintf("\n");
+      Rprintf("  qcent ="); for(i = 0; i<*ncent; i++) Rprintf(" %f", qcent[i]); Rprintf("\n");
+      Rprintf("  xcent ="); for(i = 0; i<*ncent; i++) Rprintf(" %f", xcent[i]); Rprintf("\n");
+      print_REGS(&R);
+      error("In %s at line %d\n", __FILE__, __LINE__);
+    }
+
+    for(i=1; i <= *ncent; ++i) x_init[R_VEC((*ncent)*(j-1)+i)] = xcent[R_VEC(i)];
+
+    // update etas, beta_sample and R.betacurr
+    for(i = 1; i <= *nObs; ++i) eta[R_VEC(i)] += X[R_MAT(i,j,*nObs)] * (xsamp[0] - beta_sample[R_VEC(j)]);
+    beta_sample[R_VEC(j)] = xsamp[0];
+    R.betacurr[R_VEC(j)]  = xsamp[0];
+  }
+  Free(XI); Free(eta); Free(xcent);
+}
+
 
 double lgtfn(double b, void *W){
   REG *WW;
@@ -95,8 +190,6 @@ void dbSPSTRUCT(int *obsid,double *featval,int *nfobs,int *NF){
   //for(i=0;i < S[0].nidx;++i)printf("obsid=%d\tfval=%f\n",S[0].obsidx[i],S[0].fval[i]);
   return;
 }
-
-
 
 //off: offset
 //beta0: priormean

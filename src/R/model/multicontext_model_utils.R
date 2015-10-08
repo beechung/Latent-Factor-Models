@@ -412,7 +412,7 @@ get.size <- function(...){
 	if(any(temp[temp != 0] != s)) warning("Not all input elements have the same size");
 	return(as.integer(s));
 }
-check.individual <- function(name, x, type.list, size, isNullOK, stopIfAnyNull=NULL){
+check.individual <- function(name, x, type.list, size, isNullOK, stopIfAnyNull=NULL, check.NA=FALSE){
 	if(is.null(x)){
 		if(isNullOK) return(TRUE)
 		else stop(name," is null");
@@ -456,6 +456,10 @@ check.individual <- function(name, x, type.list, size, isNullOK, stopIfAnyNull=N
 			if(length(d) != length(size) || any(d != size)) stop(name," has dimensionality mismatch: (",paste(d,collapse=" x "),") vs (",paste(size,collapse=" x "),")");
 		}
 	}
+    if(check.NA){
+        numNAs = sum(is.na(x));
+        if(numNAs > 0) stop(name, " has ",numNAs," NAs inside it");
+    }
 }
 
 check_names <- function(x, display.name, required, should.have=c(), optional=c(), prefix=""){

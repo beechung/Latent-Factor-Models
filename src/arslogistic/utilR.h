@@ -37,7 +37,7 @@ typedef struct{
   int id;
   int nobs;
   double *eta;
-  int *Y;
+  double *Y;
   double *X;
   double *betacurr;
   double *beta0;
