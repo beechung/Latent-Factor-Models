@@ -34,3 +34,11 @@ void ARSLOGISTICSPLINE(
   double *beta_sample, const double *qcent, const int *ncent,
   const int *ninit, const double *x_lower, const double *x_upper,
   double *x_init, const double *alpha, int *neval);
+
+/**
+ * The function to fit logistic regression using ARS sampler
+ */
+void fitLogistic(const double *offset, double *beta_mean, double *beta_var,
+  double *X, double *y, const int *nFactors, const int *nObs, double* beta_sample,
+  const double *qcent, const int *ncent, const int *ninit, const double *x_lower,
+  const double *x_upper, const int* nSamples);

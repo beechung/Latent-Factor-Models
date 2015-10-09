@@ -64,7 +64,7 @@ fit.ARS.logistic <- function(
     }else{
         stop("Please specify data.train!");
     }
-    
+
     if(is.null(init.model)){
         init.model = init.simple.random(
                 obs=obs, feature=feature,
@@ -77,7 +77,7 @@ fit.ARS.logistic <- function(
     param  = init.model$param;
     if(!all(c("alpha", "beta", "u", "v") %in% names(factor))) stop("init.model$factor must be a list of alpha, beta, u, v");
     if(!all(c("b", "g0", "d0", "G", "D", "var_alpha", "var_beta", "var_u", "var_v") %in% names(param))) stop("init.model$param must be a list of b, g0, d0, G, D, var_alpha, var_beta, var_u, var_v");
-    
+
     output = fit.MCEM.logistic(
             nIter=nIter,
             doMstep=doMstep,
@@ -96,7 +96,7 @@ fit.ARS.logistic <- function(
             beta.int=beta.int, center=center, main.effects=main.effects,
             ...
     );
-    
+
     return(output);
 }
 
@@ -157,7 +157,7 @@ fit.MCEM.logistic <- function(
 #    bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
     bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
     LL[1] = bestLL;
-    
+
     if (length(var_u)==1) var_u = rep(var_u,nFactors);
     if (length(var_v)==1) var_v = rep(var_v,nFactors);
 
@@ -200,7 +200,7 @@ fit.MCEM.logistic <- function(
     # Initialize ars_XI_alpha, etc.
     xi = rep(0,ars_ninit);
     for(i in 1:ars_ninit){
-      xi[i] <- ars_xl + (i + 1.0)*(ars_xu - ars_xl)/(ars_ninit + 1.0);
+      xi[i] <- ars_xl + i*(ars_xu - ars_xl)/(ars_ninit + 1.0);
       if(xi[i] >= ars_xu) xi[i]=xi[i] - .1;
       if(xi[i] <= ars_xl) xi[i] = xi[i] + .1;
     }
@@ -295,7 +295,7 @@ fit.MCEM.logistic <- function(
                 alpha=alpha, alpha.sumvar=mc_e$alpha.sumvar, beta=beta, beta.sumvar=mc_e$beta.sumvar,
                 u=u, u.sumvar=mc_e$u.sumvar, v=v, v.sumvar=mc_e$v.sumvar,
                 debug=debug, lm=use.lm,
-                use.glmnet=use.glmnet, fit.ars.alpha=fit.ars.alpha, 
+                use.glmnet=use.glmnet, fit.ars.alpha=fit.ars.alpha,
                 fit.regression=fit.regression, beta.int=beta.int,
                 main.effects=main.effects, ...
             );
@@ -479,11 +479,11 @@ fit.MCEM.factorhybrid <- function(
                               alpha=alpha,beta=beta,u=u,v=v,
                               var_y=var_y, var_alpha=var_alpha, var_beta=var_beta,
                               var_u=var_u, var_v=var_v, debug=debug, verbose=verbose,
-                              use.C.EStep=use.C.EStep,use.C=use.C,   
-                              func.rmvnorm=func.rmvnorm, 
-                              print.path=F, 
+                              use.C.EStep=use.C.EStep,use.C=use.C,
+                              func.rmvnorm=func.rmvnorm,
+                              print.path=F,
                               delta1=delta1,...)
   #now run regression on the fitted factors to populate g0,d0,G,D.
-  
-  
+
+
 }

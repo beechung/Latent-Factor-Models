@@ -48,6 +48,49 @@ void print_REGS(REGS* problem){
   }
 }
 
+// beta_sample is a nSamples X nFactors result matrix
+void fitLogistic(const double *offset, double *beta_mean, double *beta_var,
+  double *X, double *y, const int *nFactors, const int *nObs, double* beta_sample,
+  const double *qcent, const int *ncent, const int *ninit, const double *x_lower,
+  const double *x_upper, const int* nSamples) {
+	const double alpha = 0.5;
+	int nEvalBuckets = (*nSamples) / 100;
+	int* neval = (int*)calloc(nEvalBuckets*(*nFactors),sizeof(int));
+	int* nevalCurrent = (int*)calloc(*nFactors,sizeof(int));
+	double* one_sample = (double*)calloc(*nFactors, sizeof(double));
+    double* x_init = (double*)calloc((*nFactors)*(*ninit), sizeof(double));
+	for (int i=1;i<=*nFactors;i++) {
+		one_sample[R_VEC(i)] = 0;
+	}
+	for (int i=1;i<=*ninit;i++) {
+		for (int j=1;j<=*nFactors;j++) {
+			x_init[R_MAT(i,j,*ninit)] = *x_lower + i*((*x_upper)-(*x_lower))/((*ninit)+1.0);
+			if (x_init[R_MAT(i,j,*ninit)] >= (*x_upper)) x_init[R_MAT(i,j,*ninit)] -= 0.1;
+			if (x_init[R_MAT(i,j,*ninit)] <= (*x_upper)) x_init[R_MAT(i,j,*ninit)] += 0.1;
+		}
+	}
+	for (int i=1; i<=*nSamples; i++) {
+		ARSLOGISTICSPLINE(offset, beta_mean, beta_var, X, y, nFactors, nObs, one_sample,
+				          qcent, ncent, ninit, x_lower, x_upper, x_init, &alpha, nevalCurrent);
+		for (int j=1;j<=*nFactors;j++) {
+			beta_sample[R_MAT(i,j,*nSamples)] = one_sample[R_VEC(j)];
+			int ind = (i-1)/100;
+			neval[R_MAT(ind+1,j,nEvalBuckets)] += nevalCurrent[R_VEC(j)];
+		}
+	}
+	for (int i=1;i<=nEvalBuckets;i++)
+		Rprintf("%d ", neval[R_MAT(i,1,nEvalBuckets)]);
+	Rprintf("\n");
+	Rprintf("Last xinit values:\n");
+	for (int i=1;i<=*ninit;i++) {
+		for (int j=1;j<=*nFactors;j++) {
+			Rprintf("%f ", x_init[R_MAT(i,j,*ninit)]);
+		}
+		Rprintf("\n");
+	}
+
+	free(neval); free(one_sample);free(x_init);free(nevalCurrent);
+}
 // See the arsspline.h for documentation of this function
 void ARSLOGISTICSPLINE(
   const double *offset, double *beta_mean, double *beta_var,
@@ -134,7 +177,7 @@ double lgtfn(double b, void *W){
 // function to initialize array of FIDX.
 
 FIDX *SPSTRUCT(int *obsid,double *featval,int *nfobs,int nf){
-  // fid:obsid:featval (featureid, obsid, featureval). Specifying design matrix in sparse format. obsid is sorted by feature index from 1:M, 
+  // fid:obsid:featval (featureid, obsid, featureval). Specifying design matrix in sparse format. obsid is sorted by feature index from 1:M,
   //nfobs gives the number of entries per feature.
   // nobs (featureid, nobs)
   // nf: number of features
@@ -146,7 +189,7 @@ FIDX *SPSTRUCT(int *obsid,double *featval,int *nfobs,int nf){
     S[R_VEC(i)].nidx = nfobs[R_VEC(i)];
     S[R_VEC(i)].obsidx = (int *)Calloc(nfobs[R_VEC(i)],int);
     S[R_VEC(i)].fval = (double *)Calloc(nfobs[R_VEC(i)],double);
-   
+
     for(k=0;k < nfobs[R_VEC(i)];++k){
       (S[R_VEC(i)].obsidx)[k] = obsid[cursor + k]; (S[R_VEC(i)].fval)[k] = featval[cursor + k];
     }
@@ -178,7 +221,7 @@ void debuglgtfn(double *off,int *obsid,double *featval,int *nfobs,// parameters 
   R.id = *fid;
   printf("val=%f\n",lgtfn(*x,&R));
 
-  
+
   return;
 }
 
@@ -237,12 +280,12 @@ void ARSLOGISTICSPARSE(double *off,double *beta0,double *varbeta,
   for(j=1;j <= *nFact;++j){
     R.id=j;
     for(i=1;i <= *ninit;++i)XI[R_VEC(i)] = xi[R_VEC((*ninit)*(j-1)+i)];
-  
+
     flag=arms(XI,*ninit,&XL,&XU,lgtfn,&R,&convex,npoint,0,&betaout[R_VEC(j)],xsamp,nsamp,qcent,xcent,*ncent,&neval[R_VEC(j)]);
     if(flag > 0){printf("err=%d\t in ars",flag); exit(1);}
-    
+
     for(i=1;i <= *ncent;++i)xi[R_VEC((*ncent)*(j-1)+i)]=xcent[R_VEC(i)];
-    
+
     //update etas
     for(i=1;i<= S[R_VEC(j)].nidx;++i){
       id=S[R_VEC(j)].obsidx[R_VEC(i)];
@@ -252,7 +295,7 @@ void ARSLOGISTICSPARSE(double *off,double *beta0,double *varbeta,
     betaout[R_VEC(j)]=xsamp[0];
     R.betacurr[R_VEC(j)] = xsamp[0];
     //if(*verboseC > 0){if( j%1000 == 0)printf("number of features processed=%d\n",j);}
-								 
+
   }
   Free(XI);Free(S);
   return;
@@ -270,7 +313,7 @@ void ARSLOGISTICSPARSEAUX(double *off,double *beta0,double *varbeta,
   double xsamp[1],convex,lin,XL,XU;
   int npoint,nsamp,i,j,flag,count,id;
   REG R;
- 
+
 
   convex=1.0;npoint=500;nsamp=1;flag=1;count=0;
   XL = *xl; XU= *xu;
@@ -291,12 +334,12 @@ void ARSLOGISTICSPARSEAUX(double *off,double *beta0,double *varbeta,
   for(j=1;j <= *nFact;++j){
     R.id=j;
     for(i=1;i <= *ninit;++i)XI[R_VEC(i)] = xi[R_VEC((*ninit)*(j-1)+i)];
-  
+
     flag=arms(XI,*ninit,&XL,&XU,lgtfn,&R,&convex,npoint,0,&betaout[R_VEC(j)],xsamp,nsamp,qcent,xcent,*ncent,&neval[R_VEC(j)]);
     if(flag > 0){printf("err=%d\t in ars",flag); exit(1);}
-    
+
     for(i=1;i <= *ncent;++i)xi[R_VEC((*ncent)*(j-1)+i)]=xcent[R_VEC(i)];
-    
+
     //update etas
     for(i=1;i<= S[R_VEC(j)].nidx;++i){
       id=S[R_VEC(j)].obsidx[R_VEC(i)];
@@ -306,7 +349,7 @@ void ARSLOGISTICSPARSEAUX(double *off,double *beta0,double *varbeta,
     betaout[R_VEC(j)]=xsamp[0];
     R.betacurr[R_VEC(j)] = xsamp[0];
     //if(*verboseC > 0){if( j%1000 == 0)printf("number of features processed=%d\n",j);}
-								 
+
   }
   return;
 }
@@ -318,7 +361,7 @@ void ARSSAMP(double *off,double *beta0,double *varbeta,int *obsid,double *featva
   int i,k,flag,vninit,vnFact;
   double *xprev,diff,*XI;
   FIDX *S;
-  
+
   vninit = *ninit; vnFact= *nFact;
   xprev = (double *)Calloc(vninit*vnFact,double);
   S = SPSTRUCT(obsid,featval,nfobs,vnFact);
@@ -344,7 +387,7 @@ void ARSSAMP(double *off,double *beta0,double *varbeta,int *obsid,double *featva
       if(ISNA(xi[i]) || ISNAN(xi[i]))flag=1;
     }
     if(flag){
-      for(i=0;i < vninit*vnFact;++i)xi[i] = xprev[i];} 
+      for(i=0;i < vninit*vnFact;++i)xi[i] = xprev[i];}
     else {
       for(i=0;i < vninit*vnFact;++i)xprev[i] = xi[i];
     }
@@ -355,11 +398,11 @@ void ARSSAMP(double *off,double *beta0,double *varbeta,int *obsid,double *featva
 
 
 // matrix factorization via sgd.
-// U: vec(u) where u = [u1:u2:..uM]; 
+// U: vec(u) where u = [u1:u2:..uM];
 void SGD(int *user, int *item, double *U,double *V,int *nFact,double *Y,double *w,int *nobs,double *lrate,double *lambda,int *niter){
   double lam,lr,LR,sum,res,rescum;
   int N,nf,iter,i,j,I,J;
-  
+
   lam = *lambda; LR = 1.0/(*lrate); N = *nobs; nf = *nFact;
   //printf("nf=%d\tV[125]=%f\tU[12]=%f\n",nf,V[125],U[11]);
   // get initial rmse.
@@ -371,7 +414,7 @@ void SGD(int *user, int *item, double *U,double *V,int *nFact,double *Y,double *
       res = Y[R_VEC(i)] - sum; rescum += w[R_VEC(i)]*res*res;
   }
   printf("initial rmse=%f\n",sqrt(rescum/N));
-  
+
   for(iter=1;iter <= *niter;++iter){
     lr = 1.0/(iter - 1.0 + LR);
     rescum=0.0;
@@ -379,8 +422,8 @@ void SGD(int *user, int *item, double *U,double *V,int *nFact,double *Y,double *
       I = user[R_VEC(i)]; J = item[R_VEC(i)];
       sum=0.0;
       for(j=1;j<=nf;j++){
-	
-	
+
+
 	sum += U[R_MAT(j,I,nf)]*V[R_MAT(j,J,nf)];
       }
 
