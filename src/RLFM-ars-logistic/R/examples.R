@@ -13,9 +13,9 @@ source("src/R/model/multicontext_model_genData.R");
 source("src/R/model/multicontext_model_utils.R");
 set.seed(0);
 d = generate.GaussianData(
-		nSrcNodes=1003, nDstNodes=1003, nObs=100003, 
+		nSrcNodes=10, nDstNodes=10, nObs=100003,
 		nSrcContexts=1, nDstContexts=1, nEdgeContexts=0, nFactors=3, has.gamma=FALSE, has.u=TRUE,
-		nObsFeatures=13, nSrcFeatures=19, nDstFeatures=23,
+		nObsFeatures=0, nSrcFeatures=0, nDstFeatures=0,
 		b.sd=1, g0.sd=1, d0.sd=1, G.sd=1, D.sd=1,
 		var_y=0.1, var_alpha=0.5, var_beta=0.5, var_v=1, var_u=1,
 		has.intercept=TRUE, binary.response=TRUE,
@@ -83,8 +83,8 @@ data.test = indexTestData(
 library(glmnet);
 dyn.load("lib/c_funcs.so");
 dyn.load("lib/arslogistic.so");
-source("src/R/c_funcs.R");
-source("src/R/util.R");
+#source("src/R/c_funcs.R");
+#source("src/R/util.R");
 source("src/R/model/multicontext_model_EM.R");
 source("src/R/model/multicontext_model_utils.R");
 source("src/RLFM-ars-logistic/R/c_funcs.R");
@@ -93,8 +93,8 @@ source("src/RLFM-ars-logistic/R/fit.MCEM.logistic.R");
 source("src/RLFM-ars-logistic/R/regression.R");
 set.seed(1); # NOTE: set.seed doesn't work because the ARS code uses its own random number generator
 ans =  fit.ARS.logistic(
-        nIter=10,      # Number of EM iterations
-        nSamples=10, nBurnin=20,  # Number of samples and burnin drawn in each E-step: could be a vector of size nIter.
+        nIter=20,      # Number of EM iterations
+        nSamples=100, nBurnin=20,  # Number of samples and burnin drawn in each E-step: could be a vector of size nIter.
         data.train=data.train, # Training data = list(obs, feature)
         nFactors=3,   # Number of factors (i.e., number of dimensions of u)
         init.model=NULL, # Initial model = list(factor, param). Set to NULL to use the default.
@@ -110,7 +110,7 @@ ans =  fit.ARS.logistic(
         use.glmnet=TRUE,
         # ARS parameters
         ars_ninit=3, ars_qcent=c(5.0,50.0,95.0), # number of initial points and the quantiles of the initial points
-        ars_xl=-5, ars_xu=5, # lower bound and upper bound of ARS samples
+        ars_xl=-3, ars_xu=3, # lower bound and upper bound of ARS samples
         ars_alpha=0.5,
-        center=FALSE # center the random effects at every iteration of the ARS?
+        identifiable=F
 );

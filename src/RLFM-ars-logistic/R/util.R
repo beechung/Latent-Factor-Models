@@ -47,8 +47,8 @@ check.input.logistic <- function(
     if(!is.vector(b))  stop("b should be a vector");
     if(!is.vector(g0) && !is.matrix(g0)) stop("g0 should be a vector");
     if(!is.vector(d0) && !is.matrix(d0)) stop("d0 should be a vector");
-    if(!is.matrix(G))  stop("G should be a matrix");
-    if(!is.matrix(D))  stop("D should be a matrix");
+    if(!is.matrix(G)) stop("G should be a matrix");
+    if(!is.matrix(D)) stop("D should be a matrix");
     if(!is.vector(y))  stop("y should be a vector");
     if(!is.vector(user))   stop("user should be a vector");
     if(!is.vector(item))   stop("item should be a vector");
@@ -85,7 +85,7 @@ check.input.logistic <- function(
             stopIfAnyNull=list("obs$y"=y,"obs$dst.id"=item,"feature$x_dst"=z,"param$D"=D,"param$var_v"=var_v),
             check.NA=check.NA
     );
-    
+
     if(version == 1){
         if(!length(var_alpha) == 1) stop("var_alpha should have length 1");
         if(!length(var_beta) == 1)  stop("var_beta should have length 1");

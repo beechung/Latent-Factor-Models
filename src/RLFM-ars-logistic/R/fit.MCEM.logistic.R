@@ -30,8 +30,8 @@ fit.ARS.logistic <- function(
     nFactors,   # Number of factors (i.e., number of dimensions of u)
     init.model=NULL, # Initial model = list(factor, param). Set to NULL to use the default.
     doMstep=TRUE,
-    # initialization parameters
-    var_alpha=1, var_beta=1, var_v=1, var_u=1,
+    # initialization parameters, should be very very small
+    var_alpha=0.1, var_beta=0.1, var_v=0.05, var_u=0.05,
     # others
     out.level=0,  # out.level=1: Save the parameter values out.dir/est.highestCDL and out.dir/est.last
     out.dir=NULL, # out.level=2: Save the parameter values of each iteration i to out.dir/est.i
@@ -50,8 +50,8 @@ fit.ARS.logistic <- function(
     fit.ars.alpha=FALSE, # whether we want to fit ars_alpha in the M-step
     fit.regression=TRUE, # do we want to update the regression parameters?
     beta.int=FALSE, # do we want to put the intercept in the beta prior?
-    center=TRUE, # center the random effects at every iteration of the ARS?
-    main.effects=FALSE, # only fix the main effects. Leave u and v set to 0.
+    main.effects=FALSE, # only fit the main effects. Leave u and v set to 0.
+    identifiable=TRUE, # Whether we want the model to be identifiable or not
     ...             # Additional parameters passing into the regression functions (e.g., bayesglm)
 ){
     obs=NULL; feature=NULL;
@@ -123,8 +123,8 @@ fit.MCEM.logistic <- function(
     fit.ars.alpha=F, # whether we want to fit ars_alpha in the M-step
     fit.regression=T, # do we want to update the regression parameters?
     beta.int=F, # do we want to put the intercept in the beta prior?
-    center=T, # center the random effects at every iteration of the ARS?
-    main.effects=F, # only fix the main effects. Leave u and v set to 0.
+    main.effects=F, # only fit the main effects. Leave u and v set to 0.
+    identifiable=TRUE, # Whether we want the model to be identifiable or not
     ...         # Additional parameters passing into the regression functions (e.g., bayesglm)
 ){
     user = as.integer(user);
@@ -133,13 +133,19 @@ fit.MCEM.logistic <- function(
     #if(beta.int && center) stop("Cannot learn intercept in random effects when centered")
 
     if (main.effects)
-      {
+    {
         u = matrix(0, dim(u)[1], dim(u)[2])
         v = matrix(0, dim(v)[1], dim(v)[2])
-      }
+    }
 
-    # Make sure initialization of v are all positive
-    v = abs(v);
+    if (identifiable) {
+      # Make sure initialization of v are all positive
+      v = abs(v);
+      beta.int = FALSE;
+      center = TRUE;
+    } else {
+      center = FALSE;
+    }
 
     if(beta.int && length(d0) != dim(z)[2] + 1) d0 = c(0, d0)
 
@@ -154,8 +160,7 @@ fit.MCEM.logistic <- function(
     nFactors = ncol(u);
 
     LL = rep(NA, nIter+1); # LL records the logLikelihood of each iteration
-#    bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
-    bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
+    bestLL = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
     LL[1] = bestLL;
 
     if (length(var_u)==1) var_u = rep(var_u,nFactors);
@@ -207,19 +212,20 @@ fit.MCEM.logistic <- function(
     ars_XI_alpha = rep(xi,nUsers);
     ars_XI_beta = rep(xi,nItems);
     ars_XI_u = rep(xi,nUsers*nFactors);
-    # Initialize ars_XI_v as positive
-    xi = rep(0,ars_ninit);
-    for(i in 1:ars_ninit){
-      xi[i] <- (i + 1.0)*(ars_xu)/(ars_ninit + 1.0);
-      if(xi[i] >= ars_xu) xi[i]=xi[i] - .1;
-      if(xi[i] <= 0) xi[i] = xi[i] + .1;
+    if (identifiable) {
+      # Initialize ars_XI_v as positive
+      xi = rep(0,ars_ninit);
+      for(i in 1:ars_ninit){
+        xi[i] <- i*(ars_xu)/(ars_ninit + 1.0);
+        if(xi[i] >= ars_xu) xi[i]=xi[i] - .1;
+        if(xi[i] <= 0) xi[i] = xi[i] + .1;
+      }
     }
     ars_XI_v = rep(xi,nItems*nFactors);
 
     begin.time = proc.time();
 
     for(iter in 1:nIter){
-         # gc(verbose=T);
 
         if(verbose >= 2){
             cat("---------------------------------------------------------\n",
@@ -270,8 +276,7 @@ fit.MCEM.logistic <- function(
         time.used = proc.time() - b.time;
         time.used.1 = time.used;
         if(verbose >= 2){
-            #    ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
-            ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha=ars_alpha, beta.int=F, debug=debug, use.C=use.C.EStep);
+            ll = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha=ars_alpha, beta.int, debug=debug, use.C=use.C.EStep);
             cat("end   E-STEP (logLikelihood = ",ll," + constant,  used ",time.used[3]," sec)\n",
                 "start M-STEP\n",sep="");
         }
@@ -289,7 +294,6 @@ fit.MCEM.logistic <- function(
         d0old <- d0;      var_betaold <- var_beta;
         Dold <- D;        var_vold <-  var_v;
         if(doMstep==1){
-                # gc(verbose=T);
             mc_m = MC_MStep_logistic_arscid(
                 user, item, y, x, b, w, z, o,
                 alpha=alpha, alpha.sumvar=mc_e$alpha.sumvar, beta=beta, beta.sumvar=mc_e$beta.sumvar,
@@ -324,17 +328,18 @@ fit.MCEM.logistic <- function(
                 D = matrix(0, nrow=ncol(z), ncol=nFactors)
                 var_u = rep(1,nFactors)
                 var_v = rep(1,nFactors)
-          }
+            }
         }
-    	# Order G, D, u and v
-    	ind = order(var_v);
-    	var_u = var_u[ind];
-    	var_v = var_v[ind];
-    	G = G[,ind];
-    	D = D[,ind];
-    	u = u[,ind];
-    	v = v[,ind];
-
+        if (identifiable) {
+    	    # Order G, D, u and v
+    	    ind = order(var_v);
+    	    var_u = var_u[ind];
+    	    var_v = var_v[ind];
+    	    G = G[,ind];
+    	    D = D[,ind];
+    	    u = u[,ind];
+    	    v = v[,ind];
+        }
         if(verbose > 0){
           r <- dim(D)[2]
           cat("var_alpha=",var_alpha,"\n");
@@ -343,7 +348,6 @@ fit.MCEM.logistic <- function(
           cat("var_v=",var_v,"\n");
           cat("b=",b,"\n");
           if(beta.int) cat("mean(beta)=",mean(beta),"\n")
-          #cat("Alpha for logistic spline = ",ars_alpha,"\n");
           cat("bdiff =",max(abs(b-bold)/(abs(bold) + delta1)),"\n")
           cat("g0diff=",max(abs(g0 - g0old)/(abs(g0old) + delta1)),"\n")
           cat("d0diff=",max(abs(d0 - d0old)/(abs(d0old) + delta1)),"\n")
@@ -357,9 +361,7 @@ fit.MCEM.logistic <- function(
           o2 = x %*% b + o; ep = exp(o2)/(1+exp(o2))
           cat("E(P(click)) = ", mean(ep), "\n")
         }
-       #LL[iter+1] = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
-
-        LL[iter+1] = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int=F, debug, use.C.EStep);
+        LL[iter+1] = logLikelihood.logistic(user, item, y, x, w, z, alpha, beta, u, v, b, g0, G, d0, D, var_alpha, var_beta, var_u, var_v, ars_alpha, beta.int, debug, use.C.EStep);
 
         time.used = proc.time() - b.time;
         time.used.2 = time.used;

@@ -423,7 +423,7 @@ MC_MStep_logistic_arscid <- function(
     user, item, y, x, b, w, z,
     o, alpha, alpha.sumvar, beta, beta.sumvar, u, u.sumvar, v, v.sumvar,
     debug=0, lm=F, use.glmnet=F, fit.ars.alpha=F, fit.regression=T,
-    beta.int=T, main.effects=F,...
+    beta.int=T, main.effects=F, ...
 ){
     nObs     = length(y);
     nUsers   = length(alpha);
@@ -434,15 +434,15 @@ MC_MStep_logistic_arscid <- function(
 
     # find ars alpha ...
     if (fit.ars.alpha )
-      {
+    {
         ars_alpha = estalpha(y,b,o);
         output$ars_alpha = ars_alpha;
-      }
+    }
     else
-      {
+    {
         output$ars_alpha = 0.5;
         ars_alpha = 0.5;
-      }
+    }
 
     # determine b and var_y
     if(beta.int == F){
@@ -461,19 +461,17 @@ MC_MStep_logistic_arscid <- function(
             a0 = fit0$glmnet.fit$a0[lambdaind];
             coef = fit0$glmnet.fit$beta[,lambdaind];
             fit = list();
-            fit$coefficients = as.vector(c(a0,coef));            
+            fit$coefficients = as.vector(c(a0,coef));
         } else {
-            #fit = glm(y ~ x -1, family=binomial(link = "logit"),offset=o, model=F);
             # fit as covariate
             nobs = length(x)
             x = cbind(matrix(x,length(x),1), rep(0,length(x)))
-            
+
             fit = bayesglm(y ~ x - 1, family=binomial(link="logit"), offset=o ,model=F, prior.scale = 5);
-            
+
             fit$coef = fit$coef[1]; fit$coefficients=fit$coefficients[1]; x = matrix(x[,1],nobs,1)
         }
       }
-      #if(length(fit$coef) != ncol(x)) stop("length(fit$coef) != ncol(x)");
       output$b = fit$coefficients;
     } else {
       #fit in random effects heirarchy inside of beta ... but still center for computation ...
@@ -484,7 +482,6 @@ MC_MStep_logistic_arscid <- function(
     {
         stop("Currently fit.ars.alpha=T only works for ncol(x)==1");
     }
-    #cat("use.glmnet=",use.glmnet,"\n");
     cat("fit regression=",fit.regression,"\n")
     cat("intercept in beta prior =",beta.int,"\n")
 
@@ -502,7 +499,7 @@ MC_MStep_logistic_arscid <- function(
       # determin d0 and var_beta ( and b if in heirarchy )
       if (beta.int) z2 = cbind(1,z) else z2=z
 
-      if (use.glmnet==F    ) {
+      if (use.glmnet==F) {
           fit = fit.forMainEffect.bayesglm(beta, z2, lm=lm,...);
       } else {
         fit = fit.forMainEffect.glmnet(beta, z2, ...);
@@ -510,7 +507,6 @@ MC_MStep_logistic_arscid <- function(
 
       output$d0 = fit$coef;
       output$var_beta = (sum(fit$rss) + beta.sumvar) / nItems;
-      #output$var_beta = 1;
 
       if(!main.effects){
                                         # determin G and var_u
@@ -522,13 +518,9 @@ MC_MStep_logistic_arscid <- function(
           fit = fit.forFactors.glmnet(u, w, ...);
         }
         output$G = fit$coef;
-	
-	#cat("var_u.rss=",fit$rss,"\n");
-	#cat("u.sumvar=",u.sumvar,"\n");
-	#output$var_u = (fit$rss + u.sumvar)/nUsers;
-        #output$var_u = (fit$rss + u.sumvar) / (nUsers * nFactors);
-        #output$var_u = 1;
-	output$var_u = rep(1,nFactors);
+
+	      # Whether or not identifiable==T, var_u should always be 1
+	      output$var_u = rep(1,nFactors);
 
         # determin D and var_v
         if (use.glmnet==F)
@@ -539,41 +531,25 @@ MC_MStep_logistic_arscid <- function(
           fit = fit.forFactors.glmnet(v, z, ...);
         }
         output$D = fit$coef;
-	cat("var_v.rss=",fit$rss,"\n");
+        cat("var_v.rss=",fit$rss,"\n");
         cat("v.sumvar=",v.sumvar,"\n");
-	output$var_v = (fit$rss + v.sumvar)/nItems;
-        #output$var_v = (fit$rss + v.sumvar) / (nItems * nFactors);
-        #output$var_v = rep(1,nFactors);
-
+        output$var_v = (fit$rss + v.sumvar)/nItems;
       }
     } else
     {
       output$var_alpha = (sum(alpha^2) + alpha.sumvar) / nUsers;
-      #output$var_beta = 1;
       output$var_beta = (sum(beta^2) + beta.sumvar) / nItems;
-      #if(!main.effects) output$var_u = (sum(u^2) + u.sumvar) / (nUsers * nFactors);
-      #output$var_v = rep(1,nFactors);
-      #if (!main.effects) output$var_u = (apply(u^2,2,sum)+u.sumvar)/nItems;
       output$var_u = rep(1,nFactors);
       if (!main.effects) output$var_v = (apply(v^2,2,sum)+v.sumvar)/nItems;
-      #if(!main.effects) output$var_v = (sum(v^2) + v.sumvar) / (nItems * nFactors);
     }
     if( beta.int == T && fit.regression == F)
-      {
-        #z = cbind(rep(1,length(beta)),rep(0,length(beta)))
-        #fit = fit.forMainEffect.bayesglm(beta, z, lm=lm,...);
+    {
         output$d0 = rep(0,dim(z)[2]); output$d0[1] = mean(beta);
         output$var_alpha = (sum(alpha^2) + alpha.sumvar) / nUsers;
-        #output$var_beta = 1;
         output$var_beta = (sum((beta - mean(beta))^2) + beta.sumvar) / nItems;
-        #if(!main.effects) output$var_u = (sum(u^2) + u.sumvar) / (nUsers * nFactors);
-        #output$var_u = 1;
-        #if(!main.effects) output$var_v = (sum(v^2) + v.sumvar) / (nItems * nFactors);
-	#if (!main.effects) output$var_u = (apply(u^2,2,sum)+u.sumvar)/nItems;
-        #output$var_v = rep(1,nFactors);
-	output$var_u = rep(1,nFactors);
-	if (!main.effects) output$var_v = (apply(v^2,2,sum)+v.sumvar)/nItems;
-      }
+        output$var_u = rep(1,nFactors);
+        if (!main.effects) output$var_v = (apply(v^2,2,sum)+v.sumvar)/nItems;
+    }
 
     return(output);
 }

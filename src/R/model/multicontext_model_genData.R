@@ -1,16 +1,48 @@
 ### Copyright (c) 2011, Yahoo! Inc.  All rights reserved.
 ### Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
-### 
+###
 ### Author: Bee-Chung Chen
 
 # Generate some normal data for testing
 #
 #   All feature values (x_obs, x_src, x_dst, x_ctx) follow N(0,1)
-#	
+#
 #	Visually checked 12/20, 2010
 #
+
+# Generate a data with just intercept + alpha_i + beta_j without factors or cold-start models, for debugging purpose
+genMainEffectData <- function(
+  nSrcNodes, nDstNodes, nObs, intercept=1,
+  var_y, var_alpha, var_beta, binary.response=FALSE
+) {
+  alpha = rnorm(nSrcNodes, mean=0, sd=sqrt(var_alpha));
+  beta = rnorm(nDstNodes, mean=0, sd=sqrt(var_beta));
+  src.id = c(1:nSrcNodes, sample.int(nSrcNodes, nObs-nSrcNodes, replace=TRUE));
+  dst.id = c(sample.int(nDstNodes, nObs-nDstNodes, replace=TRUE), 1:nDstNodes);
+  output=list();
+  output$obs = data.frame(src.id=as.integer(src.id), dst.id=as.integer(dst.id));
+  pred.y = intercept + alpha[src.id] + beta[dst.id];
+  if(binary.response){
+    output$y.prob = 1/(1+exp(-pred.y));
+    output$obs$y  = rbinom(n=nObs,size=1,prob=output$y.prob);
+  }else{
+    output$obs$y =  pred.y + rnorm(nObs, mean=0, sd=sqrt(var_y));
+  }
+
+  # Placeholder for features, intercept only
+  x_obs = matrix(1, nrow=nObs, ncol=1);
+  x_src = matrix(1, nrow=nSrcNodes, ncol=2);
+  x_dst = matrix(1, nrow=nDstNodes, ncol=2);
+
+  output$alpha = alpha
+  output$beta = beta
+  output$intercept = intercept
+  output$feature = list(x_src=x_src, x_dst=x_dst, x_obs=x_obs);
+  output
+}
+
 genNormalData <- function(
-    nSrcNodes, nDstNodes, nObs, 
+    nSrcNodes, nDstNodes, nObs,
 	nSrcContexts, nDstContexts, nEdgeContexts, nFactors, has.u, has.gamma, nLocalFactors,
     b, g0, d0, h0=NULL, G=NULL, D=NULL, H=NULL, q=NULL, r=NULL,
 	var_y=NULL, var_alpha, var_beta, var_gamma=NULL, var_u=NULL, var_v=NULL, var_w=NULL,
@@ -22,7 +54,7 @@ genNormalData <- function(
 	frac.zeroFeatures=0, y.bias=0
 ){
     if(!is.vector(b))  stop("b should be a vector");
-	
+
 	nObsFeatures = length(b);
 	nSrcFeatures = nrow(g0);
 	nDstFeatures = nrow(d0);
@@ -50,9 +82,9 @@ genNormalData <- function(
 	if(nLocalFactors > 0){
 		if(nLocalFactors*nEdgeContexts != nFactors) stop("nLocalFactors*nEdgeContexts != nFactors");
 	}
-	
+
     if(nObs < nSrcNodes || nObs < nDstNodes) stop("nObs < nSrcNodes || nObs < nDstNodes");
-    
+
     x_obs = matrix(rnorm(nObs*nObsFeatures), nrow=nObs, ncol=nObsFeatures, dimnames=list(NULL, sprintf("x_obs_%03d", 1:nObsFeatures)));
     x_src = matrix(rnorm(nSrcNodes*nSrcFeatures), nrow=nSrcNodes, ncol=nSrcFeatures,  dimnames=list(NULL, sprintf("x_src_%03d", 1:nSrcFeatures)));
     x_dst = matrix(rnorm(nDstNodes*nDstFeatures), nrow=nDstNodes, ncol=nDstFeatures,  dimnames=list(NULL, sprintf("x_dst_%03d", 1:nDstFeatures)));
@@ -88,7 +120,7 @@ genNormalData <- function(
 	}else{
 		alpha = alpha + rnorm(nSrcNodes, mean=0, sd=sqrt(var_alpha));
 	}
-	
+
 	beta = as.matrix(x_dst %*% d0);
 	beta_global = NULL;
 	if(nDstContexts > 1){
@@ -103,7 +135,7 @@ genNormalData <- function(
 	if(has.gamma){
 		gamma = drop(as.matrix(x_ctx %*% h0) + rnorm(nEdgeContexts, mean=0, sd=sqrt(var_gamma)));
 	}
-	
+
 	if(has.u)             u = as.matrix(x_src %*% G) + rnorm(nSrcNodes*nFactors, mean=0, sd=sqrt(var_u));
 	if(nFactors > 0)      v = as.matrix(x_dst %*% D) + rnorm(nDstNodes*nFactors, mean=0, sd=sqrt(var_v));
 	if(nLocalFactors > 0){
@@ -112,7 +144,7 @@ genNormalData <- function(
 	}else{
 		if(nEdgeContexts > 0) w = as.matrix(x_ctx %*% H) + rnorm(nEdgeContexts*nFactors, mean=0, sd=sqrt(var_w));
 	}
-	
+
     src.id = c(1:nSrcNodes, sample.int(nSrcNodes, nObs-nSrcNodes, replace=TRUE));
     dst.id = c(sample.int(nDstNodes, nObs-nDstNodes, replace=TRUE), 1:nDstNodes);
 	src.context = NULL;
@@ -127,9 +159,9 @@ genNormalData <- function(
 	output$obs$src.context  = src.context;
 	output$obs$dst.context  = dst.context;
 	output$obs$edge.context = edge.context;
-		
+
 	output$feature = list(x_src=x_src, x_dst=x_dst, x_obs=x_obs, x_ctx=x_ctx);
-	
+
 	output$factor  = list(alpha=alpha, beta=beta);
 	if(nSrcContexts > 1)  output$factor$alpha_global = alpha_global;
 	if(nDstContexts > 1)  output$factor$beta_global  = beta_global;
@@ -147,7 +179,7 @@ genNormalData <- function(
 	}
 	if(nSrcContexts > 1) param[["q"]] = q;
 	if(nDstContexts > 1) param[["r"]] = r;
-	
+
 	param$var_y = var_y;  param$var_alpha = var_alpha;  param$var_beta = var_beta;
 	if(nSrcContexts > 1) param$var_alpha_global = var_alpha_global;
 	if(nDstContexts > 1) param$var_beta_global = var_beta_global;
@@ -157,9 +189,9 @@ genNormalData <- function(
 		param$var_v = var_v;
 		if(nEdgeContexts > 0) param$var_w = var_w;
 	}
-	
+
 	output$param = param;
-	
+
 	pred.y = y.bias + predict.y.from.factors(output$obs, output$factor, output$feature, output$param);
 	if(binary.response){
 		output$y.prob = 1/(1+exp(-pred.y));
@@ -167,7 +199,7 @@ genNormalData <- function(
 	}else{
 		output$obs$y =  pred.y + rnorm(nObs, mean=0, sd=sqrt(var_y));
 	}
-    
+
 	if(sparse.matrices){
 		if(index.value.format) func = matrix.to.index.value
 		else                   func = function(x){ return(Matrix(x, sparse=TRUE)); };
@@ -177,13 +209,13 @@ genNormalData <- function(
 		if(!is.null(x_ctx)) x_ctx = func(x_ctx);
 		output$feature = list(x_src=x_src, x_dst=x_dst, x_obs=x_obs, x_ctx=x_ctx);
 	}
-	
+
     return(output);
 }
 
 # Visually checked 12/20, 2010
 generate.GaussianData <- function(
-    nSrcNodes, nDstNodes, nObs, 
+    nSrcNodes, nDstNodes, nObs,
 	nSrcContexts, nDstContexts, nEdgeContexts, nFactors, has.gamma, has.u,
 	nObsFeatures, nSrcFeatures, nDstFeatures, nCtxFeatures=0, nLocalFactors=0,
 	b.sd=1, g0.sd=1, d0.sd=1, h0.sd=1, G.sd=1, D.sd=1, H.sd=1, q.sd=1, r.sd=1,
@@ -208,10 +240,10 @@ generate.GaussianData <- function(
 	q = NULL; r = NULL;
 	if(nSrcContexts > 1) q = rnorm(nSrcContexts, mean=q.mean, sd=q.sd);
 	if(nDstContexts > 1) r = rnorm(nDstContexts, mean=r.mean, sd=r.sd);
-	
+
 	ans = genNormalData(
-	    nSrcNodes=nSrcNodes, nDstNodes=nDstNodes, nObs=nObs, 
-		nSrcContexts=nSrcContexts, nDstContexts=nDstContexts, nEdgeContexts=nEdgeContexts, 
+	    nSrcNodes=nSrcNodes, nDstNodes=nDstNodes, nObs=nObs,
+		nSrcContexts=nSrcContexts, nDstContexts=nDstContexts, nEdgeContexts=nEdgeContexts,
 		nFactors=nFactors, nLocalFactors=nLocalFactors, has.u=has.u, has.gamma=has.gamma,
 	    b=b, g0=g0, d0=d0, h0=h0, G=G, D=D, H=H, q=q, r=r,
 		var_y=var_y, var_alpha=var_alpha, var_beta, var_gamma=var_gamma, var_u=var_u, var_v=var_v, var_w=var_w,
